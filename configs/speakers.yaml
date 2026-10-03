@@ -1,0 +1,175 @@
+# Hablantes de referencia: 4 de SLR61 (2F / 2M).
+#
+# Procedencia: OpenSLR SLR61, "Crowdsourced high-quality Argentine Spanish speech data set"
+# (https://openslr.org/61/, CC BY-SA 4.0). Los clips se construyeron desde una copia del corpus
+# reorganizada por hablante, con los silencios recortados y resampleada a 22050 Hz mono 16 bits.
+# Ese detalle importa para reproducir: quien parta del SLR61 crudo obtendra los mismos ids de
+# utterance pero no los mismos bytes.
+#
+# Los cuatro hablantes se eligieron por calidad de voz. Todos son porteños, asi que no hay
+# variable regional que controlar y la distribucion de referencia de la metrica de rotica es
+# porteña por construccion (SPEC 7.4).
+#
+# Los 20 clips se escucharon uno por uno: el audio es limpio y cada `transcript` coincide con lo
+# que se dice. Eso es condicion para publicar el WER de ground truth, porque una transcripcion que
+# no coincide con su audio infla ese WER y arruina la escala de toda la metrica.
+#
+# Los clips NO se editan a mano: los construye `scripts/build_reference_clips.py` a partir de los
+# `source_utterances` declarados acá, y `--check` verifica que lo que hay en disco reconstruya
+# desde esos ids. Las utterances de SLR61 son cortas (mediana < 3 s), asi que ningun clip unico
+# cubre el presupuesto de 6 s de referencia del protocolo: los clips concatenan utterances
+# ENTERAS separadas por 250 ms de silencio, sin tocar niveles ni resamplear.
+#
+# Las tres listas tienen usos distintos y no se mezclan:
+#
+#   ref_clips          se pasan al modelo como referencia de voz. >= 6.5 s para que los cuatro
+#                      hablantes entreguen los 6 s completos de max_ref_seconds y ref_seconds_used
+#                      salga igual para todos los modelos que solo usan audio. El 2do clip es el
+#                      chequeo de sensibilidad (ver grid.yaml).
+#                      LLEVAN `transcript` desde el 2026-08-27, porque Qwen3-TTS lo necesita para
+#                      clonar zero-shot. El campo se poblo cuando hubo quien lo usara y no antes,
+#                      y sobre todo cuando hubo quien lo VALIDARA: la duda original era que un
+#                      campo que nadie chequea se desactualiza en silencio, y eso ahora lo cubre
+#                      `build_reference_clips.py --check`, que falla si el texto declarado no es
+#                      lo que dicen las utterances. Importa porque el modo de falla es mudo: un
+#                      par (audio, texto) desalineado no da error, da peor clonado.
+#                      OJO con recortar: estos clips miden 6.5 a 11.6 s y el `transcript` describe
+#                      el clip COMPLETO. Un modelo que recorte el audio a max_ref_seconds y pase
+#                      este texto entero le esta mintiendo al modelo. Ver SPEC 6.4.
+#   control_clips      NUNCA se usan como referencia. Dan el techo y el piso de similitud (SPEC
+#                      7.2) y las filas de ground truth (SPEC 5.5), asi que su transcript tiene
+#                      que ser exacto.
+#                      `ctrl_00` es, en los cuatro hablantes, la concatenacion de las 4 oraciones
+#                      que los cuatro leyeron, en el mismo orden. Asi el PISO (control de A vs
+#                      control de B) compara contenido identico y el coseno aisla identidad de
+#                      hablante. El TECHO (ctrl_00 vs ctrl_01) usa contenido distinto, que es como
+#                      se mide al modelo: tambien sintetiza contenido distinto del prompt.
+#   calibration_clips  enunciados cortos naturales, para el umbral absoluto de duracion de la
+#                      categoria `enunciados_cortos` (SPEC 7.5). No entran en el techo largo de
+#                      similitud —el embedding de un clip de 0.8 s es ruidoso y lo subestimaria—
+#                      pero SI forman el `short_ceiling` (SPEC 7.2): 0.671 contra 0.827 del techo
+#                      largo. Sin ese punto, una sintesis de 0.8 s se lee contra un techo medido
+#                      en clips de 7 s y pierde por duracion y no por clonado.
+#
+# Ningun clip comparte audio con otro del mismo hablante; el core lo valida por ruta y por id de
+# utterance.
+#
+# Nota metodologica: las transcripciones de SLR61 son español neutro con algo de voseo suelto
+# ("¿Sabes silbar?" junto a "¿Me ayudás a buscar un local?"). O sea que la referencia casi no trae
+# voseo, y el voseo que produzca un modelo sale del texto, no de imitar el prompt.
+
+- id: slr61_f_01
+  source: slr61
+  gender: F
+  source_speaker: arf_00295
+  notes: >-
+    ctrl_01 dice "ciertas pizzas que son mejores que los diabeticos", que se lee raro: es un
+    error de la hablante al grabar, no de la transcripcion. Verificado a oido. NO "corregir" ese
+    transcript: tiene que coincidir con el audio, no tener sentido.
+  ref_clips:
+    - path: data/refs/slr61/slr61_f_01/ref_00.wav
+      duration_s: 11.62
+      transcript: "El gobierno puso a disposición de la población los medios necesarios para la reubicación de la mayoría de las víctimas Según el noticiero de Aristegui Noticias el periodista era inocente, pero según Reforma era culpable."
+      source_utterances: ["01745620920", "00941298847"]
+    - path: data/refs/slr61/slr61_f_01/ref_01.wav
+      duration_s: 10.64
+      transcript: "Si preferís ir por tierra te recomiendo que te hospedes en el Hotel Paraíso para que llegues de día y no de noche. Muy bien, te enviare esas canciones enseguida, también te voy a mandar un artículo sobre el rock de esta época."
+      source_utterances: ["01048417138", "01131884458"]
+  control_clips:
+    - path: data/refs/slr61/slr61_f_01/ctrl_00.wav
+      duration_s: 7.61
+      transcript: "La ciudad es bellísima y tan alegre No supo descifrar las huellas ¿Cuáles son las principales diferencias? ¿Quién subió el mejor video?"
+      source_utterances: ["01153918696", "02051061628", "01259129668", "01955284393"]
+    - path: data/refs/slr61/slr61_f_01/ctrl_01.wav
+      duration_s: 5.82
+      transcript: "La revista de nutrición Vida Saludable, tiene un artículo que dice que hay ciertas pizzas que son mejores que los diabéticos."
+      source_utterances: ["01065483579"]
+  calibration_clips:
+    - path: data/refs/slr61/slr61_f_01/calib_00.wav
+      duration_s: 0.93
+      transcript: "No te entiendo nada"
+      source_utterances: ["01708733090"]
+
+- id: slr61_f_02
+  source: slr61
+  gender: F
+  source_speaker: arf_04766
+  ref_clips:
+    - path: data/refs/slr61/slr61_f_02/ref_00.wav
+      duration_s: 8.2
+      transcript: "¿Me ayudás a buscar un local donde pueda comprarle un regalo a mi abuela? Quiero saber cuál es la hamburguesa con menos calorías. ¿Cuáles son los restauráns más cercanos a mi hotel?"
+      source_utterances: ["00263368586", "00703600486", "01739879973"]
+    - path: data/refs/slr61/slr61_f_02/ref_01.wav
+      duration_s: 8.55
+      transcript: "Me podés mandar más información sobre los hechos. Me recomendás un negocio de ropa moderna. ¿Cuánta gente vas a invitar al día de campo? Estoy haciendo una tarea de la facultad."
+      source_utterances: ["01046064747", "01949798674", "00419809591", "00597675048"]
+  control_clips:
+    - path: data/refs/slr61/slr61_f_02/ctrl_00.wav
+      duration_s: 6.91
+      transcript: "La ciudad es bellísima y tan alegre No supo descifrar las huellas ¿Cuáles son las principales diferencias? ¿Quién subió el mejor video?"
+      source_utterances: ["01078348562", "01071126572", "01161611959", "00508095464"]
+    - path: data/refs/slr61/slr61_f_02/ctrl_01.wav
+      duration_s: 7.74
+      transcript: "Quiero deshacerme de algunas cosas en mi casa pero no las quiero tirar, las quiero reciclar Es muy difícil encontrarle un regalo a mi mamá, su gusto es muy particular."
+      source_utterances: ["00784122613", "00741019958"]
+  calibration_clips:
+    - path: data/refs/slr61/slr61_f_02/calib_00.wav
+      duration_s: 1.17
+      transcript: "¿Quiere que le de el teléfono?"
+      source_utterances: ["01883607907"]
+
+- id: slr61_m_01
+  source: slr61
+  gender: M
+  source_speaker: arm_02484
+  ref_clips:
+    - path: data/refs/slr61/slr61_m_01/ref_00.wav
+      duration_s: 6.55
+      transcript: "El otro día ví un video en Facebook sobre un aparatito que te ponías en la oreja y directamente te traducía, ¿eso existe?"
+      source_utterances: ["01097035645"]
+    - path: data/refs/slr61/slr61_m_01/ref_01.wav
+      duration_s: 6.54
+      transcript: "El tipo de pantalla que se maneja es de alta tecnología, ves los pixeles a una resolución de realidad virtual casi"
+      source_utterances: ["01872458944"]
+  control_clips:
+    - path: data/refs/slr61/slr61_m_01/ctrl_00.wav
+      duration_s: 7.82
+      transcript: "La ciudad es bellísima y tan alegre No supo descifrar las huellas ¿Cuáles son las principales diferencias? ¿Quién subió el mejor video?"
+      source_utterances: ["01011687935", "01852883028", "01428475484", "01815496382"]
+    - path: data/refs/slr61/slr61_m_01/ctrl_01.wav
+      duration_s: 7.29
+      transcript: "Hoy te molesto con otra cosa, es que necesito armar una conferencia, yo no he hecho esto nunca y la verdad no sabría muy bien cómo hacerlo"
+      source_utterances: ["01394289778"]
+  calibration_clips:
+    - path: data/refs/slr61/slr61_m_01/calib_00.wav
+      duration_s: 1.08
+      transcript: "No te entiendo nada"
+      source_utterances: ["00760635742"]
+
+- id: slr61_m_02
+  source: slr61
+  gender: M
+  source_speaker: arm_01523
+  ref_clips:
+    - path: data/refs/slr61/slr61_m_02/ref_00.wav
+      duration_s: 7.99
+      transcript: "Las estadísticas muestran que hay más accidentes de tránsito durante la noche que durante el día. La goma de mascar proviene del interior de unos árboles de los que no me se el nombre"
+      source_utterances: ["01184375989", "01021549865"]
+    - path: data/refs/slr61/slr61_m_02/ref_01.wav
+      duration_s: 7.65
+      transcript: "Se come tanto Sushi en el mundo que el atún está desapareciendo de los océanos Estoy teniendo problemas con el auto y un amigo me recomendó un Audi de cuatro puertas"
+      source_utterances: ["00492283559", "02145490533"]
+  control_clips:
+    - path: data/refs/slr61/slr61_m_02/ctrl_00.wav
+      duration_s: 6.33
+      transcript: "La ciudad es bellísima y tan alegre No supo descifrar las huellas ¿Cuáles son las principales diferencias? ¿Quién subió el mejor video?"
+      source_utterances: ["00062520990", "00372393755", "00850792665", "00585890444"]
+    - path: data/refs/slr61/slr61_m_02/ctrl_01.wav
+      duration_s: 8.37
+      transcript: "Las estadísticas muestran que hay más accidentes de tránsito los fines de semana que los días de semana. El idioma Japonés y el idioma Español son parecidos en cuanto a pronunciación"
+      source_utterances: ["00983583523", "01066588171"]
+  calibration_clips:
+    - path: data/refs/slr61/slr61_m_02/calib_00.wav
+      duration_s: 0.75
+      transcript: "¿Sabes silbar?"
+      source_utterances: ["00803723289"]

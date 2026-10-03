@@ -1,0 +1,67 @@
+# Chatterbox v3, SÓLO para volver a medir latencia (ANALYSIS A14).
+#
+# Mismos parametros que `chatterbox_v3.yaml`: si alguno difiere, esto mide otro modelo. Lo unico
+# que cambia es `name` y `manifest_path`, para que los `generation_id` no colisionen con la corrida
+# publicada ni con la rama sin mitigador.
+#
+# NO es una fila del benchmark: su manifest va a `data/latency/` y no entra en el reporte.
+
+name: chatterbox_v3_lat_ec
+adapter: rtb.generate.chatterbox:ChatterboxAdapter
+
+hf_repo: ResembleAI/chatterbox
+# Resuelto en la primera corrida y pegado acá (SPEC 5.3). `from_pretrained` de la libreria tiene
+# `revision="main"` HARDCODEADO, asi que el adapter no lo usa: baja el snapshot el mismo, lee el
+# hash del nombre del directorio y carga con `from_local`. Sin eso la corrida quedaria clavada a
+# lo que apunte `main` el dia que corra, que es justo lo que SPEC 5.3 prohibe.
+model_revision: 5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18
+
+# ── el presupuesto de referencia, y por que acá SI se puede honrar ──────────────────────────────
+# Chatterbox consume la referencia en TRES largos distintos a la vez, verificado en
+# `prepare_conditionals`:
+#
+#   tokens de prompt T3     primeros 6.0 s   (ENC_COND_LEN 96000 / 16000 Hz)
+#   decoder s3gen           primeros 10.0 s  (DEC_COND_LEN 240000 / 24000 Hz)
+#   voice encoder           EL CLIP ENTERO, sin recorte
+#
+# El voice encoder es justamente el componente mas ligado a la identidad del hablante, asi que con
+# nuestros clips de 6.5-11.6 s el modelo veria hasta 11.62 s de una voz y 6.55 de otra, igual que
+# Qwen3-TTS. Pero a diferencia de Qwen, Chatterbox clona SOLO desde audio: no hay transcripcion que
+# desalinear, asi que el adapter recorta el wav a `max_ref_seconds` ANTES de pasarlo y los tres
+# caminos ven exactamente lo mismo. Eso honra el presupuesto del protocolo y deja a este modelo
+# comparable con XTTS-v2 a 6.0 s parejos. Ver SPEC 6.4.
+max_ref_seconds: 6.0
+
+# La libreria no expone streaming de generacion: `generate` devuelve el wav completo. Igual que en
+# el modo entero de XTTS y en Qwen, ttfb_ms == total_ms, que es el dato correcto.
+supports_streaming: false
+default_sample_rate: 24000
+device: cuda
+
+audio_root: audio
+manifest_path: data/latency/chatterbox_v3_lat_ec.jsonl
+
+params:
+  # Explicito, nunca inferido. Es la variable central del benchmark.
+  language_id: es
+
+  # Los defaults del vendor, tal cual los declara `generate`. Mismo criterio que en XTTS-v2 (los
+  # valores de su config.json) y en Qwen3-TTS (los de sus evaluaciones publicadas): se mide el
+  # modelo como lo publican sus autores, no una configuracion que nadie usa. Fijados una sola vez;
+  # cambiarlos a mitad del benchmark invalida la comparacion.
+  #
+  # `exaggeration` y `cfg_weight` son las perillas propias de Chatterbox y no tienen equivalente en
+  # los otros dos modelos, asi que no hay forma de "igualarlas" entre modelos: se declaran y punto.
+  # `exaggeration` entra ademas en el conditioning, no solo en la generacion, asi que cambiarlo
+  # invalida el cache de referencias del adapter (por eso es parte de su clave).
+  exaggeration: 0.5
+  cfg_weight: 0.5
+  temperature: 0.8
+  repetition_penalty: 2.0
+  min_p: 0.05
+  top_p: 1.0
+
+  # El mitigador que esta rama prueba: vaciar el cache del allocator entre
+  # sintesis, siempre despues del reloj. Si apaga la deriva, A14 se cierra con una
+  # linea de codigo en vez de con reinicios de proceso.
+  empty_cache_between: true

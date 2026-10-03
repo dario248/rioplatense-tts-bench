@@ -1,0 +1,40 @@
+# Entorno de la etapa 2 — metricas. Uno solo, compartido por todos los modelos: lee wavs y
+# manifests del disco y no le importa qué los produjo.
+#
+#   uv venv --python 3.11 .venv-eval
+#   uv pip install --python .venv-eval -r envs/eval.txt
+#   uv pip install --python .venv-eval -e .            # el core: pydantic + pyyaml
+#
+# NUNCA importa una libreria de TTS, ni indirectamente (SPEC seccion 3), y
+# tests/test_core_isolation.py falla si eso deja de ser cierto.
+#
+# Verificado el 2026-08-22 en RTX 4050 Laptop (6.18 GB VRAM, driver 550.163.01 = CUDA 12.4):
+#   faster-whisper 1.2.1 | ctranslate2 4.8.1 | av 18.1.0 | tokenizers 0.23.1 | numpy 2.4.6
+#   python 3.11.13 | modelo large-v3 | compute_type int8_float16
+#
+# Medido con esa combinacion: RTF 0.192 transcribiendo con word_timestamps, o sea unos 5 minutos
+# para las 552 filas de v0 (540 sintesis + 12 de audio real). Carga del modelo, 54 s la primera vez
+# porque baja los pesos; despues, cache.
+
+# ── ASR ───────────────────────────────────────────────────────────────────────────────────────
+# faster-whisper y no openai-whisper por dos razones que importan en esta maquina:
+#   - Corre sobre CTranslate2, NO sobre torch. Este entorno no necesita torch en absoluto, lo cual
+#     lo mantiene liviano y lo aisla de la pelea de versiones de CUDA que tuvimos en generacion.
+#   - `int8_float16` deja large-v3 en ~1.5 GB de VRAM. En una placa de 6 GB eso es la diferencia
+#     entre correr y no correr.
+# La cuantizacion CAMBIA las transcripciones, asi que forma parte de la identidad de la metrica:
+# cada fila de transcripts.jsonl registra modelo, revision y compute_type, igual que el manifest
+# registra model_revision. Sin eso el WER no es reproducible.
+faster-whisper
+
+# Nada mas hace falta para el pase de transcripcion. Dos motivos, por si sorprende:
+#   - faster-whisper decodifica el archivo solo, via PyAV, que ya viene como dependencia.
+#   - la envolvente de energia —para separar habla de relleno— se calcula sobre wavs PCM 16 bit
+#     mono, que la stdlib lee con `wave` + `array`. No hace falta librosa ni soundfile.
+
+# ── Pendiente: similitud de hablante ──────────────────────────────────────────────────────────
+# La metrica de SPEC 7.2 necesita speechbrain (ECAPA-TDNN), y eso SI arrastra torch, mas scipy o
+# librosa para el resample y el band-limit a 8 kHz de SPEC 7. Al agregarlos hay que chequear que no
+# rompan a ctranslate2 ni a numpy: si entran en conflicto, la salida es partir en dos entornos
+# (`asr` y `speaker_sim`), que es barato porque cada metrica ya escribe su propio archivo y las
+# etapas son asincronicas. No agregarlos "por si acaso" antes de necesitarlos.

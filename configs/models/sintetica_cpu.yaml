@@ -1,0 +1,45 @@
+# sintetica_cpu — el mismo modelo de configs/models/sintetica.yaml, medido en CPU para el eje de costo (SPEC 6.3).
+#
+# OJO: los `params` estan DUPLICADOS de configs/models/sintetica.yaml. Si alguno cambia alla y no aca, las dos
+# plataformas dejan de medir el mismo modelo y la comparacion GPU/CPU miente sin avisar.
+#
+# Los threads no van en el config: se fijan con OMP_NUM_THREADS al invocar, y quedan registrados
+# en el `_resources.json` que la corrida escribe al lado de su manifest.
+
+name: sintetica_cpu
+adapter: rtb.generate.sintetica:SinteticaAdapter
+hf_repo: null
+model_revision: null
+max_ref_seconds: 6.0
+supports_streaming: false
+default_sample_rate: 22050
+device: cpu
+reference_only: true
+audio_root: audio
+manifest_path: data/latency/sintetica_cpu.jsonl
+params:
+  # Los pesos no estan en el repo. SINTETICA_TTS_ROOT apunta al checkout del servicio
+  # que los tiene, el mismo que instala el wheel del fork (envs/sintetica.txt).
+  weights_root: ${SINTETICA_TTS_ROOT}/weights
+  voices:
+    slr61_f_01: arf_00295
+    slr61_f_02: arf_04766
+    slr61_m_01: arm_02484
+    slr61_m_02: arm_01523
+  checkpoints:
+    - name: adultos_femenino
+      synth: adultos_femenino/fp_multi_fem_v2.pth
+      config: adultos_femenino/config_fp_multi_fem_v1.json
+      speakers: adultos_femenino/fem_speakers_v1.pth
+      stats: adultos_femenino/fp_multi_stats_v1.npy
+      voices: [arf_00295, arf_04766]
+    - name: adultos_masculino
+      synth: adultos_masculino/fp_multi_mal_v2.pth
+      config: adultos_masculino/config_fp_multi_mal_v1.json
+      speakers: adultos_masculino/mal_speakers_v1.pth
+      stats: adultos_masculino/fp_multi_stats_v1.npy
+      voices: [arm_02484, arm_01523]
+  vocoder:
+    weights: vocoder/hifi_gan_v1.pth
+    config: vocoder/config_hifi_gan_v1.json
+  speed: 1.0

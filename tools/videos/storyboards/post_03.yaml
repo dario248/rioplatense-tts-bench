@@ -1,0 +1,92 @@
+# Post 3 — where the dialect question lives in v0.
+#
+# The phrases play whole. Cut around the target word they read as eight fragments that start
+# already begun, and the pronunciation — the only thing to listen to — goes by before the ear
+# finds it. The word's own timestamp marks its band on the spectrogram instead, so it can be
+# seen coming. No phonetic transcription on screen: the listener decides, because the metric
+# cannot.
+
+lang: en
+title: "Eight pronunciations, eight perfect scores"
+title_es: "Ocho pronunciaciones, ocho puntajes perfectos"
+
+segments:
+  - type: card
+    duration: 5.0
+    title: "Eight pronunciations. Eight perfect scores."
+    title_es: "Ocho pronunciaciones. Ocho puntajes perfectos."
+    lines:
+      - "Two place names, four models, one speaker."
+      - "Every one of them scores WER 0.000."
+    lines_es:
+      - "Dos topónimos, cuatro modelos, una hablante."
+      - "Todos sacan WER 0,000."
+
+  - type: clip
+    source: generation
+    generation_id: xtts_v2__slr61_f_02__top_001__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Callao"
+    hold: 0.5
+  - type: clip
+    source: generation
+    generation_id: qwen3_tts__slr61_f_02__top_001__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Callao"
+    hold: 0.5
+  - type: clip
+    source: generation
+    generation_id: chatterbox_v3__slr61_f_02__top_001__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Callao"
+    hold: 0.5
+  - type: clip
+    source: generation
+    generation_id: sintetica__slr61_f_02__top_001__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Callao"
+    hold: 0.5
+
+  - type: clip
+    source: generation
+    generation_id: xtts_v2__slr61_f_02__top_003__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Ushuaia"
+    hold: 0.35
+  - type: clip
+    source: generation
+    generation_id: qwen3_tts__slr61_f_02__top_003__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Ushuaia"
+    hold: 0.35
+  - type: clip
+    source: generation
+    generation_id: chatterbox_v3__slr61_f_02__top_003__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Ushuaia"
+    hold: 0.35
+  - type: clip
+    source: generation
+    generation_id: sintetica__slr61_f_02__top_003__s1234__ref0
+    label: "{model}"
+    sublabel: "WER {wer:.3f}"
+    focus: "Ushuaia"
+    hold: 0.35
+
+  - type: card
+    duration: 7.0
+    title: "The metric can't tell the difference. Can you?"
+    title_es: "La métrica no nota la diferencia. ¿Vos sí?"
+    lines:
+      - "\"Callao\" is the canonical test of the Rioplatense sound, and the phrase set declares it unmeasurable by alignment."
+    lines_es:
+      - "\"Callao\" es el test canónico del sonido rioplatense, y el set de frases lo declara no medible por alineación."
+    note: "This is where the dialect question lives in v0."
+    note_es: "Acá es donde vive la pregunta dialectal en la versión 0."

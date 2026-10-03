@@ -1,0 +1,81 @@
+# Entorno de generacion de Qwen3-TTS. Sucio y desechable: no comparte nada con los de metricas.
+#
+#   uv venv --python 3.12 .venv-qwen
+#   uv pip install --python .venv-qwen -r envs/qwen3_tts.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cu126 --index-strategy unsafe-best-match
+#   uv pip install --python .venv-qwen -e .            # el core: pydantic + pyyaml
+#
+#   .venv-qwen/bin/python -m rtb.generate --config configs/models/qwen3_tts.yaml --dry-run
+#
+# Verificado el 2026-08-27 en RTX 4050 Laptop (6.18 GB VRAM, driver 550.163.01 = CUDA 12.4):
+#   qwen-tts 0.1.1 | torch 2.13.0+cu126 | torchaudio 2.11.0+cu126 | transformers 4.57.3
+#   python 3.12 | checkpoint Qwen/Qwen3-TTS-12Hz-1.7B-Base @ fd4b254389122332181a7c3db7f27e918eec64e3
+#
+# ── MEDIDO en esa maquina, con warm-up y con torch.cuda.synchronize() ──────────────────────────
+# Tamaño real, que es lo que explica la latencia:
+#   talker           1916.7 M   bfloat16, cuda:0
+#   speaker_encoder     12.0 M
+#   codec               153.7 M
+#   TOTAL              2082.4 M   contra 466.9 M de XTTS-v2 (gpt 441.0 + hifigan_decoder 25.9)
+#
+# VRAM: 4.20 GB al cargar, pico 4.57 GB allocated / 5.02 GB reserved. O sea que en esta placa de
+# 6.18 GB queda ~1.1 GB de margen. NO usar la GPU para otra cosa durante la corrida: un OOM no
+# aborta —el adapter lo convierte en fila con error— pero deja celdas sin generar.
+#
+# RTF con warm-up: 0.93 a 1.08, practicamente PLANO (0.926 en 8.6 s de audio, 1.045-1.082 en
+# enunciados de menos de un segundo, que pagan el overhead fijo por llamada). Contra el 0.252 de
+# XTTS-v2: 3.8x mas lento con 4.5x mas parametros, o sea que la latencia es tamaño y nada raro.
+# Notar que Qwen rinde algo MEJOR de lo que predice el conteo, porque corre en bfloat16 sobre
+# tensor cores mientras XTTS corre en float32.
+#
+# OJO: la primera medicion de este adapter dio RTF 1.63 en un enunciado corto y era basura —se
+# corrio con --no-warmup y la primera sintesis pagaba compilacion de kernels. Es exactamente para
+# lo que existe el warm-up del protocolo (SPEC 6.2). Cualquier timing sin warm-up no se publica.
+#
+# Implementacion de atencion efectiva: `sdpa`. Ver la nota de flash-attn mas abajo.
+#
+# Python 3.12 y no 3.11 como el resto: es lo que documenta el README de Qwen. El core es
+# compatible (declara >=3.10), asi que no hay conflicto.
+#
+# La variante de CUDA se elige igual que en XTTS: `--extra-index-url .../cu126` porque el driver
+# de esta maquina es 12.4. Sin ese flag uv baja los wheels de CUDA 13 y `cuda.is_available()`
+# queda en False EN SILENCIO, con la corrida cayendose a CPU, donde la latencia no significa nada.
+
+# ── el modelo ──────────────────────────────────────────────────────────────────────────────────
+# Ojo con la nomenclatura, que es una trampa: hay tres productos con nombres casi iguales.
+#   Qwen3-TTS-Flash (sep 2025)   linea hosted anterior, SIN pesos
+#   QwenLM/Qwen3-TTS 12Hz (ene 2026)   linea abierta Apache-2.0, pesos descargables  <- este
+#   Qwen-Audio-3.0-TTS (jul 2026)      flagship comercial nuevo, hosted-only, SIN pesos
+# El flagship NO es una version nueva de la linea abierta. Una busqueda casual devuelve el repo
+# abierto y hace parecer que si. Ademas del reporte tecnico solo se liberaron las variantes 12Hz:
+# las 25Hz aparecen en las tablas del paper y siguen anunciadas como "proximamente", asi que un
+# numero citado del paper hay que verificar a que variante corresponde.
+qwen-tts
+
+# flash-attn es OPCIONAL y no se instala acá: compila desde fuente, tarda, y sin el la corrida usa
+# `sdpa` (el scaled_dot_product_attention de PyTorch), que ya es un kernel fusionado y no la
+# implementacion ingenua —el warning del paquete al importar exagera—. Si se quiere:
+#   MAX_JOBS=4 uv pip install --python .venv-qwen flash-attn --no-build-isolation
+# Solo funciona con float16/bfloat16. Si se agrega DESPUES de haber generado, NO se mezcla en el
+# mismo manifest: cambia el kernel de atencion y por lo tanto los timings, y la latencia
+# publicada dejaria de venir de un solo stack. `tests/test_manifest_provenance.py` lo detecta.
+
+# ── decisiones de protocolo que van en el config, no acá ────────────────────────────────────────
+# Estan en configs/models/qwen3_tts.yaml con su motivo, pero se nombran porque son las que hacen
+# comparable —o no— esta corrida contra la de XTTS-v2:
+#
+#   non_streaming_mode: true   El DEFAULT de la libreria es false, que segun su propio docstring
+#                              "simula entrada de texto en streaming". No es streaming de
+#                              generacion, pero alimenta el texto por chunks, y XTTS recibe el
+#                              texto entero. Dejarlo en el default compararia dos protocolos.
+#   x_vector_only_mode: false  Modo ICL, que usa audio + transcripcion. Es la configuracion de uso
+#                              real; el modo solo-embedding existe pero la doc avisa que clona
+#                              peor, y medir un modelo en su modo degradado no dice nada.
+#   language: "Spanish"        Explicito y no "Auto": el propio protocolo de evaluacion de Qwen usa
+#                              language explicito, y "Auto" mete una variable sin controlar.
+#
+# NOTA IMPORTANTE de comparabilidad: Qwen recibe la referencia COMPLETA (6.5 a 11.6 s segun el
+# hablante) porque su prompt de clonacion es un par (audio, texto) y recortar el audio a los 6 s
+# de max_ref_seconds lo desalinearia del texto. XTTS-v2 recibe 6.0 s exactos. La diferencia queda
+# por fila en `ref_seconds_used` y `ref_text_provided`, y va declarada en el README: son dos
+# condiciones experimentales distintas, no una nota al pie. Ver SPEC 6.4 y 7.2.

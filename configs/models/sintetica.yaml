@@ -1,0 +1,71 @@
+# Sintetica (fine-tuned propio), in-process y local.
+#
+# Adapter: src/rtb/generate/sintetica.py
+# Entorno: envs/sintetica.txt (el wheel vendored pide python >=3.9,<3.12 y torch <2.0).
+#
+# FUERA DE COMPETENCIA en el eje de calidad y comparable en el de costo (SPEC 1). No clona: la voz
+# es un `speaker_id` horneado en los pesos, y su similitud se mide contra el mismo clip de
+# referencia que los zero-shot, publicada como COTA SUPERIOR porque ese audio estuvo en su
+# entrenamiento (SPEC 7.2, ANALYSIS A15).
+
+name: sintetica
+adapter: rtb.generate.sintetica:SinteticaAdapter
+
+# Los pesos son .pth locales: no hay commit de HuggingFace que citar. La identidad la escribe el
+# adapter en cada fila como sha256 de cada checkpoint mas el del vocoder.
+hf_repo: null
+model_revision: null
+
+# Inerte: el modelo no consume referencia. Se declara porque el campo es obligatorio, y cada fila
+# sale con `ref_seconds_used: null`, que es lo que dice que el clip no entro a la sintesis.
+max_ref_seconds: 6.0
+
+# La libreria tiene `tts_stream`, pero los numeros publicados salen del modo entero como en los
+# otros tres. El TTFB real es una tanda aparte (SPEC 6.3, ANALYSIS A9).
+supports_streaming: false
+default_sample_rate: 22050
+device: cuda
+
+reference_only: true
+
+audio_root: audio
+manifest_path: data/manifests/sintetica.jsonl
+
+params:
+  # Los pesos no estan en el repo. SINTETICA_TTS_ROOT apunta al checkout del servicio
+  # que los tiene, el mismo que instala el wheel del fork (envs/sintetica.txt).
+  weights_root: ${SINTETICA_TTS_ROOT}/weights
+
+  # Hablante del benchmark -> voz del modelo. Va acá y no en el adapter porque cambia el
+  # experimento: es que voz se le pide a Sintetica para cada fila. Los cuatro de speakers.yaml
+  # estan entre las voces publicas del servicio.
+  voices:
+    slr61_f_01: arf_00295
+    slr61_f_02: arf_04766
+    slr61_m_01: arm_02484
+    slr61_m_02: arm_01523
+
+  # Un checkpoint por genero. Solo uno queda residente: la grilla itera por hablante, asi que la
+  # corrida entera cuesta UN recambio, y tener los dos en memoria duplicaria la RAM pico (7.3).
+  checkpoints:
+    - name: adultos_femenino
+      synth: adultos_femenino/fp_multi_fem_v2.pth
+      config: adultos_femenino/config_fp_multi_fem_v1.json
+      speakers: adultos_femenino/fem_speakers_v1.pth
+      stats: adultos_femenino/fp_multi_stats_v1.npy
+      voices: [arf_00295, arf_04766]
+    - name: adultos_masculino
+      synth: adultos_masculino/fp_multi_mal_v2.pth
+      config: adultos_masculino/config_fp_multi_mal_v1.json
+      speakers: adultos_masculino/mal_speakers_v1.pth
+      stats: adultos_masculino/fp_multi_stats_v1.npy
+      voices: [arm_02484, arm_01523]
+
+  # Compartido por los dos checkpoints: mismos parametros de mel.
+  vocoder:
+    weights: vocoder/hifi_gan_v1.pth
+    config: vocoder/config_hifi_gan_v1.json
+
+  # `length_scale = 1/speed`, que es el unico knob de generacion que expone FastPitch. En 1.0 se
+  # mide el modelo como lo corre el servicio.
+  speed: 1.0

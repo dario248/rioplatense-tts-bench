@@ -1,0 +1,106 @@
+# Umbrales de deteccion de fallo (SPEC 7.5).
+#
+# Acá va POLITICA, no datos. La tasa de habla no se escribe: se deriva en tiempo de ejecucion de
+# los `control_clips` y `calibration_clips` de configs/speakers.yaml, corrigiendo los 250 ms de
+# silencio que la concatenacion metio entre utterances. Asi no puede quedar desactualizada respecto
+# de los clips, que es lo que pasaria con un numero copiado a mano.
+#
+# `version` va a `metric_version` de cada fila de metricas: cambiar cualquier umbral de acá cambia
+# la tasa de fallo publicada, y eso tiene que ser detectable.
+version: "4"
+
+# Deteccion de donde empieza y termina el sonido, para separar habla de relleno (SPEC 7.5). Es lo
+# que resuelve el sesgo del screening de duracion: los clips de referencia vienen recortados y el
+# audio sintetizado trae ataque y cola, asi que comparar duraciones totales compara cosas distintas.
+audio_shape:
+  # Bloques sobre los que se calcula la energia. 20 ms es el estandar en analisis de habla: mas
+  # corto capta la periodicidad de la voz, mas largo se come las oclusivas.
+  frame_ms: 20
+  # Un bloque cuenta como sonido si su RMS supera esta fraccion del pico del clip. Relativo al
+  # pico y no absoluto, porque los modelos entregan niveles muy distintos entre si.
+  silence_threshold_ratio: 0.05
+  # Debajo de este pico absoluto (fraccion de la escala completa) el clip es silencio, no habla
+  # baja. Sin esto, un umbral relativo sobre un archivo mudo detecta "habla" en el ruido de fondo,
+  # y un modelo que devuelve silencio —modo de falla real con inputs cortos— pasaria por bueno.
+  silent_peak_ratio: 0.01
+
+# Taxonomia de fallas con transcripcion (SPEC 7.5). Casi todo se cuenta del alineamiento en vez de
+# umbralizarse, asi que acá quedan pocos numeros.
+failures:
+  # Una palabra de mas es contenido que nadie pidio. El piso es 1 y no un ratio porque el
+  # instrumento lo justifica: sobre los 12 clips de audio REAL, Whisper produjo CERO inserciones.
+  # Lo que inserta, entonces, sale de la sintesis.
+  insertions_min: 1
+  # Palabras de la referencia que faltan AL FINAL. Con 2, para no marcar una palabra final que
+  # Whisper simplemente no alcanzo a oir. Observado: 4 filas de 540, la peor con 6 faltantes.
+  # Esa palabra suelta no queda sin mirar: si ademas hay sonido ahi, la fila es
+  # `trailing_disagreement` y va a escucha con cualquier cantidad de faltantes.
+  trailing_deletions_min: 2
+  # N-grama repetido consecutivamente. Se combina con insertions_min por regla, no por umbral: un
+  # bigrama repetido sin material extra es una sustitucion, no un loop (nor_005 dijo "punto com
+  # punto com", que repite y no agrega). Un decodificador en loop repite Y se pasa de largo.
+  ngram_repeats_min: 2
+  # "Se pasa de largo", que hasta el 2026-09-16 estaba enunciado y no implementado: la regla pedia
+  # repetir y agregar UNA palabra, que no es desbordarse. Palabras de la hipotesis sobre palabras
+  # de la referencia.
+  #
+  # Meseta ancha, al reves que el corte de frontera: entre 1.1 y 1.5 las filas marcadas no se
+  # mueven. Los loops reales estan en 2.0 (un enunciado corto dicho dos veces) y 3.11 (XTTS
+  # yendose por las ramas); el falso positivo que lo destapo, nor_005 leyendo "uno uno" por
+  # "once", esta en 1.05. Se elige el medio de la meseta.
+  loop_min_length_ratio: 1.3
+  # Sonido despues de la ultima palabra que Whisper oyo. Generoso porque los timestamps de palabra
+  # tienen error de decenas de ms, y porque una cola de silencio normal no es contenido inventado.
+  tail_after_last_word_s: 0.5
+  # Desacuerdo de frontera: cuanto puede diferir el texto PEGADO (sin espacios) y aun asi contar
+  # como que la palabra se partio en vez de que aparecio material nuevo. Se combina por regla con
+  # insertions_min y con al menos una sustitucion: partir una palabra consume la adyacente, una
+  # alucinacion solo agrega.
+  #
+  # Se mide en CARACTERES cambiados sobre el largo de la frase pegada: 3 de 26 son 0.115.
+  #
+  # Movido de 0.10 a 0.12 el 2026-09-14, con escucha de por medio. Con 0.10 quedaban del lado de
+  # alucinacion las 10 filas de "bondi" -> "buen dia" (9 de Sintetica, 1 de Chatterbox), y se
+  # escucharon: los modelos dicen "bondi". Perdian por UN caracter, 3 sobre 26 contra los 2.6 que
+  # el corte permitia.
+  #
+  # El precio que se creia pagar era "cuando termines" -> "cuando termine Spice", que entra a 0.105
+  # y se daba por material genuino. La escucha lo desmintio: el modelo dice la frase entera y el
+  # ASR invento "Spice", asi que esa fila TAMBIEN sale bien de `hallucinated`. El movimiento no
+  # costo ninguna fila mal clasificada (ANALYSIS A1), y el barrido se publica al lado igual.
+  boundary_max_glued_rate: 0.12
+
+duration:
+  # Ratio duracion_real / duracion_esperada, con la esperada = tasa_del_hablante * palabras
+  # habladas. Calibrado sobre los 12 clips reales, que caen entre 0.71 y 1.37 de lo predicho
+  # (error relativo medio 11.5 %), y contra las 540 sintesis de XTTS-v2, cuyas medianas por
+  # categoria van de 1.10 a 1.41.
+  #
+  # Dato importante para leer estos numeros: las medianas sinteticas estan sistematicamente ARRIBA
+  # de 1.0. No es que los modelos aleteen: los clips de SLR61 vienen con silencios recortados y el
+  # audio sintetizado trae ataque y cola. La referencia no tiene relleno y el sintetico si.
+  too_short_ratio: 0.5
+  # 3.0 y no 2.0 por un confound conocido: el modelo de duracion no sabe de puntuacion, y una
+  # frase con puntos suspensivos o dos puntos (pro_004, vos_004) tarda mas de forma legitima. Con
+  # 2.0 se marcarian pausas correctas como falla. Con 3.0 quedan sólo los casos absurdos.
+  too_long_ratio: 3.0
+
+  # Enunciados de hasta esta cantidad de palabras habladas no se miden por ratio, porque la
+  # tolerancia multiplicativa crece con el texto: 3x sobre 9 palabras son 5 s de holgura, que esta
+  # bien; 3x sobre 3 palabras son 2.6 s, y con eso una sintesis tres veces mas larga de lo que
+  # corresponde pasa el filtro. Para textos cortos la tolerancia tiene que ser un overhead
+  # acustico fijo, no una proporcion. Con 3 se aisla exactamente la categoria `enunciados_cortos`,
+  # cuyas frases son de 1 a 2 palabras.
+  short_utterance_max_words: 3
+  # Para esos, umbral absoluto: tasa * palabras + este margen. El margen cubre ataque y una cola
+  # normal.
+  #
+  # PROVISORIO, y con motivo medido. `python -m rtb.metrics --sensitivity` sobre los enunciados
+  # cortos de XTTS-v2 da: margen 0.3 s marca el 38 %, 0.6 s el 27 %, 1.0 s el 10 %, 1.5 s el 2 %.
+  # O sea que este numero NO esta en una meseta: la tasa publicada depende de el. Lo robusto es la
+  # direccion, no el porcentaje. SPEC 7.5 pide validarlo a oido antes de reportar la tasa, y esta
+  # medicion es la razon concreta.
+  #
+  # El `too_long_ratio` de arriba, en cambio, si esta en una meseta: entre 2.5 y 4.0 la tasa se
+  # mueve del 2.2 % al 1.2 %. Por eso ese se puede reportar y este todavia no.
+  short_utterance_allowance_s: 0.6

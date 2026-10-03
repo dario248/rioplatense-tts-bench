@@ -1,0 +1,68 @@
+# Post 1 — identity has a scale, and the scale is wide.
+#
+# The reference goes first on purpose: without the original, "sounds similar" means nothing.
+# The two clones are the widest gap in the corpus on the same phrase and the same speaker, both
+# understood perfectly and neither flagged, so the only thing separating them is the voice.
+
+lang: en
+title: "Same speaker, two clones"
+title_es: "Mismo hablante, dos clones"
+
+segments:
+  - type: card
+    duration: 4.5
+    title: "One real voice. Two clones. The same sentence."
+    title_es: "Una voz real. Dos clones. La misma oración."
+    lines:
+      - "Identity is measured against a scale built from real recordings of the same four speakers."
+      - "0 is a different person. 1 is two recordings of this one."
+    lines_es:
+      - "La identidad se mide contra una escala construida con grabaciones reales de los mismos cuatro hablantes."
+      - "0 es otra persona. 1 son dos grabaciones de esta."
+
+  - type: clip
+    source: reference
+    speaker: slr61_f_02
+    clip: ref_00
+    label: "The original"
+    label_es: "La original"
+    sublabel: "OpenSLR SLR61 — the {seconds:.1f} s prompt both clones got"
+    sublabel_es: "OpenSLR SLR61 — el prompt de {seconds:.1f} s que recibieron los dos clones"
+    hold: 0.8
+
+  - type: clip
+    source: generation
+    generation_id: qwen3_tts__slr61_f_02__vos_001__s9012__ref0
+    label: "{model}"
+    sublabel: "identity {sim_scaled:.2f}"
+    sublabel_es: "identidad {sim_scaled:.2f}"
+    highlight_words: true
+    hold: 0.8
+
+  - type: clip
+    source: generation
+    generation_id: xtts_v2__slr61_f_02__vos_001__s9012__ref0
+    label: "{model}"
+    sublabel: "identity {sim_scaled:.2f}"
+    sublabel_es: "identidad {sim_scaled:.2f}"
+    highlight_words: true
+    hold: 0.8
+
+  - type: card
+    duration: 7.0
+    title: "Quality has a price."
+    title_es: "La calidad se paga."
+    lines:
+      - "The best cloner of the four is also the slowest."
+    lines_es:
+      - "El mejor clonador de los cuatro es también el más lento."
+    stats:
+      - "identity 0.85"
+      - "RTF GPU 0.91"
+      - "RTF CPU 5.4"
+    stats_es:
+      - "identidad 0,85"
+      - "RTF en GPU 0,91"
+      - "RTF en CPU 5,4"
+    note: "Qwen3-TTS. RTF below 1.0 is faster than real time. Full tables in the repo."
+    note_es: "Qwen3-TTS. Un RTF por debajo de 1,0 es más rápido que tiempo real. Las tablas completas están en el repo."

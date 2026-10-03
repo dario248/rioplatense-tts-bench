@@ -1,0 +1,66 @@
+# Entorno de generacion de XTTS-v2. Sucio y desechable: no comparte nada con el de metricas.
+#
+#   uv venv --python 3.11 .venv-xtts
+#   uv pip install --python .venv-xtts -r envs/xtts_v2.txt
+#   uv pip install --python .venv-xtts -e .            # el core: pydantic + pyyaml
+#
+#   # torch/torchaudio/torchcodec con el CUDA que corresponda a la maquina — ver abajo:
+#   uv pip install --python .venv-xtts --reinstall torch torchaudio torchcodec \
+#       --index-url https://download.pytorch.org/whl/cu126
+#
+#   .venv-xtts/bin/python -m rtb.generate --config configs/models/xtts_v2.yaml --dry-run
+#
+# `uv venv` crea el venv SIN pip adentro, asi que `python -m pip` no existe: se instala con
+# `uv pip install --python <venv>`, que apunta al venv sin necesidad de activarlo. Si alguna
+# dependencia de coqui necesitara pip de verdad (uv es mas estricto con metadata floja), el
+# escape es `uv venv --seed`, que si lo instala.
+#
+# Python: coqui declara >=3.9,<3.12. 3.11 es la version mas alta que entra en ese rango y la que
+# usa el resto del proyecto.
+#
+# Verificado el 2026-08-20 en RTX 4050 Laptop (6.18 GB VRAM, driver 550.163.01 = CUDA 12.4):
+#   coqui-tts 0.27.5 | transformers 4.57.6 | torch 2.13.0+cu126 | torchcodec 0.16.0+cu126
+#   torchaudio 2.11.0+cu126 | numpy 2.4.6 | python 3.11.13
+#
+# ESTE ARCHIVO ES LA RECETA, NO EL REGISTRO. Acá van los pines minimos con el motivo de cada uno,
+# porque son los que hay que entender para instalar en OTRA maquina — sobre todo la variante de
+# CUDA, que depende del driver. El stack exacto que produjo data/manifests/xtts_v2.jsonl esta
+# congelado aparte, en envs/xtts_v2.lock.txt, generado con `uv pip freeze`.
+#
+# Los dos se chequean contra los resultados: tests/test_manifest_provenance.py verifica que el
+# `lib_version` y el `torch_version` de cada fila del manifest coincidan con lo que pinnea el lock.
+# Si alguien actualiza un paquete y regenera medio grid, el test lo dice.
+
+coqui-tts[codec]
+# El extra `codec` no es opcional desde torch 2.9: coqui pasa su I/O de audio a torchcodec y sin
+# el extra el import de TTS aborta con TORCHCODEC_IMPORT_ERROR. torchcodec necesita ademas FFmpeg
+# en el sistema (libavcodec), que en Debian/Ubuntu viene con el paquete ffmpeg.
+
+# TECHO OBLIGATORIO. coqui-tts 0.27.5 declara `transformers>=4.57` SIN techo, asi que un install
+# limpio se trae transformers 5.x, y en la 5 desaparecio `isin_mps_friendly` de
+# transformers.pytorch_utils. XTTS la necesita: TTS/tts/layers/xtts/gpt.py importa
+# TTS.tts.layers.tortoise.autoregressive, que la usa. El sintoma es un ImportError en load().
+transformers>=4.57,<5
+
+huggingface_hub
+
+# ── La variante de CUDA de torch NO se resuelve sola ──────────────────────────────────────────
+# El wheel de PyPI apunta al CUDA mas nuevo (hoy cu130) y no chequea el driver: si el driver es
+# mas viejo, `torch.cuda.is_available()` da False en silencio y la corrida se va a CPU. El adapter
+# loguea un warning cuando eso pasa, y los timings de esa corrida no se publican — la latencia en
+# CPU es decenas de veces peor.
+#
+# Como elegir: `nvidia-smi` da la version de CUDA del driver. Los wheels cu12x corren sobre
+# cualquier driver 12.x por compatibilidad de version menor; los cu13x necesitan driver 13.x.
+# Con driver CUDA 12.4, cu126 anda y mantiene las mismas versiones de torch:
+#     --index-url https://download.pytorch.org/whl/cu126   → torch 2.13.0+cu126
+# La alternativa cu128 obliga a bajar torch a 2.11 y torchcodec a 0.11, asi que no conviene.
+#
+# Hace falta `--reinstall`: sin eso uv ve que la version instalada ya cumple y no cambia la
+# variante de build.
+torch
+torchaudio
+
+# DeepSpeed queda afuera a proposito (params.use_deepspeed: false): acelera la inferencia pero
+# agrega una dependencia que compila contra CUDA y cambia la latencia, y los numeros publicados
+# tienen que salir de la configuracion mas simple de reproducir.

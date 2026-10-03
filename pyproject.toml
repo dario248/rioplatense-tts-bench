@@ -1,0 +1,84 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rioplatense-tts-bench"
+version = "0.0.1"
+description = "Reproducible benchmark of zero-shot TTS on Rioplatense Spanish"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "dpaez", email = "paezdario24@gmail.com" }]
+
+# Piso 3.10, no 3.11: el core se instala en los CUATRO entornos (uno por modelo
+# + eval), y el mas restringido es el de XTTS (coqui declara >=3.9,<3.12).
+# 3.10 es la version mas baja que todos pueden alcanzar y deja aire al entorno
+# de XTTS sin obligar a sintaxis de 3.9 (Optional[...] en vez de X | None).
+# El venv de desarrollo y el de CI corren 3.11.
+requires-python = ">=3.10"
+
+# ATENCION: acá va SOLO el core (ver SPEC.md, seccion 3). Las dependencias de
+# TTS, de metricas y de analisis viven en envs/*.txt, un entorno por etapa.
+# Si esta lista crece con torch/transformers/numpy, el diseño se rompió.
+dependencies = [
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Solo para tools/videos/, que NO es parte del benchmark: el core no puede importar
+# nada de esto (ver tests/test_core_isolation.py). ffmpeg es binario de sistema.
+video = [
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "soundfile>=0.12",
+]
+dev = [
+  "pytest>=8.0",
+  "mypy>=1.10",
+  "ruff>=0.5",
+  "types-PyYAML",
+]
+
+[project.scripts]
+rtb-generate = "rtb.generate.runner:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rtb"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["rtb"]
+mypy_path = "src"
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true
+
+# Las dependencias pesadas estan ausentes del entorno del core A PROPOSITO: seeding.py y los
+# adapters las importan de forma lazy, adentro de load(), y el core sigue siendo instalable sin
+# ellas (SPEC seccion 3). Que mypy no las encuentre es la señal de que el diseño se respeta.
+[[tool.mypy.overrides]]
+module = [
+  "numpy.*",
+  "torch.*",
+  "torchaudio.*",
+  "TTS.*",
+  "huggingface_hub.*",
+  "faster_whisper.*",
+  "speechbrain.*",
+  "chatterbox.*",
+  "qwen_tts.*",
+]
+ignore_missing_imports = true

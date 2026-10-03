@@ -1,0 +1,30 @@
+# Modelo de prueba: ruido blanco, sin GPU y sin dependencias.
+#
+# No participa del benchmark. Existe para validar el runner completo (idempotencia, warm-up,
+# filas de error, escritura del manifest) antes de gastar una hora de GPU en descubrir que el
+# loop tenia un bug.
+
+name: dummy
+adapter: rtb.generate.dummy:DummyAdapter
+
+model_revision: dummy-noise-v1
+max_ref_seconds: 6.0
+supports_streaming: false
+default_sample_rate: 24000
+device: cpu
+
+audio_root: audio
+manifest_path: data/manifests/dummy.jsonl
+
+# No compite en el ranking ni aporta numeros de latencia comparables.
+reference_only: true
+comparable_latency: false
+
+params:
+  words_per_second: 2.6
+  amplitude: 0.05
+  # Disparadores de fallo por substring del texto. Vacios en la corrida normal; los tests los
+  # usan para ejercitar las tres modalidades de falla que mide SPEC 7.5.
+  fail_if_text_contains: []
+  truncate_if_text_contains: []
+  loop_if_text_contains: []

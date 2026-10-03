@@ -1,0 +1,11 @@
+{
+  "device": "cpu",
+  "generated": 48,
+  "gpu": null,
+  "omp_num_threads": "1",
+  "peak_rss_mib": 7034.7,
+  "peak_vram_allocated_mib": null,
+  "peak_vram_reserved_mib": null,
+  "threads": 1,
+  "warmup": 3
+}

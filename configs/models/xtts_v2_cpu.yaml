@@ -1,0 +1,35 @@
+# xtts_v2_cpu — el mismo modelo de configs/models/xtts_v2.yaml, medido en CPU para el eje de costo (SPEC 6.3).
+#
+# OJO: los `params` estan DUPLICADOS de configs/models/xtts_v2.yaml. Si alguno cambia alla y no aca, las dos
+# plataformas dejan de medir el mismo modelo y la comparacion GPU/CPU miente sin avisar.
+#
+# Los threads no van en el config: se fijan con OMP_NUM_THREADS al invocar, y quedan registrados
+# en el `_resources.json` que la corrida escribe al lado de su manifest.
+
+name: xtts_v2_cpu
+adapter: rtb.generate.xtts:XttsAdapter
+hf_repo: coqui/XTTS-v2
+model_revision: 6c2b0d75eae4b7047358e3b6bd9325f857d43f77
+max_ref_seconds: 6.0
+supports_streaming: true
+default_sample_rate: 24000
+device: cpu
+audio_root: audio
+manifest_path: data/latency/xtts_v2_cpu.jsonl
+params:
+  language: es
+  temperature: 0.85
+  length_penalty: 1.0
+  repetition_penalty: 2.0
+  top_k: 50
+  top_p: 0.85
+  do_sample: true
+  num_beams: 1
+  speed: 1.0
+  enable_text_splitting: false
+  sound_norm_refs: false
+  librosa_trim_db: null
+  streaming: false
+  stream_chunk_size: 20
+  overlap_wav_len: 1024
+  use_deepspeed: false

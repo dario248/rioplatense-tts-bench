@@ -1,0 +1,51 @@
+# Entorno de generacion de Chatterbox Multilingual v3 (Resemble AI, MIT).
+# Sucio y desechable: no comparte nada con los de metricas ni con los otros modelos.
+#
+#   uv venv --python 3.11 .venv-chatterbox
+#   uv pip install --python .venv-chatterbox -r envs/chatterbox_v3.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cu126 --index-strategy unsafe-best-match
+#   uv pip install --python .venv-chatterbox -e .            # el core: pydantic + pyyaml
+#
+#   .venv-chatterbox/bin/python -m rtb.generate --config configs/models/chatterbox_v3.yaml --dry-run
+#
+# Verificado el 2026-08-28 en RTX 4050 Laptop (6.18 GB VRAM, driver 550.163.01 = CUDA 12.4):
+#   chatterbox-tts 0.1.7 | torch 2.6.0+cu126 | torchaudio 2.6.0+cu126 | transformers 5.2.0
+#   python 3.11 | checkpoint ResembleAI/chatterbox @ 5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18
+#
+# ── MEDIDO en esa maquina, con warm-up y torch.cuda.synchronize() ──────────────────────────────
+#   t3       536.0 M   float32
+#   s3gen    263.9 M
+#   ve         1.4 M
+#   TOTAL    801.3 M   contra 466.9 M de XTTS-v2 y 2082.4 M de Qwen3-TTS
+#
+# VRAM: 3.22 GB al cargar, pico 3.71 GB alloc / 3.95 GB reserved. Comodo en esta placa, a
+# diferencia de Qwen (5.02 GB reserved de 6.18).
+#
+# RTF con warm-up: 0.60 a 0.67 en frases medias y largas, ~1.05 en enunciados de menos de un
+# segundo. Queda entre XTTS-v2 (0.252) y Qwen3-TTS (0.910). Corre en float32 como XTTS.
+#
+# `prepare_conditionals` cuesta ~11 s LA PRIMERA VEZ (inicializacion perezosa del tokenizer S3 y
+# del voice encoder) y 84-99 ms despues. El adapter lo cachea por referencia y queda fuera de los
+# timings (SPEC 6.3); la primera vez la paga una sintesis de warm-up, que esta excluida.
+
+# ── el modelo ──────────────────────────────────────────────────────────────────────────────────
+# `ChatterboxMultilingualTTS`, no `ChatterboxTTS`: la segunda es la version solo-ingles. El
+# `language_id` de español es "es" (23 idiomas soportados, ver chatterbox.SUPPORTED_LANGUAGES).
+chatterbox-tts
+
+# PIN OBLIGATORIO, y el modo de falla es feo. `resemble-perth` —el watermarker, dependencia de
+# chatterbox— importa `pkg_resources`, que setuptools ELIMINO en la version 81. Con setuptools >=81
+# el import de PerthImplicitWatermarker falla, perth deja el nombre en None por un `except
+# ImportError` silencioso, y el modelo explota recien al construirse con
+# `TypeError: 'NoneType' object is not callable` desde mtl_tts.py:155 — un mensaje que no dice
+# nada sobre setuptools. Ademas `uv venv` ya no instala setuptools por defecto, asi que hay que
+# pedirlo explicitamente.
+setuptools<81
+
+# ── el watermark, que NO se desactiva ──────────────────────────────────────────────────────────
+# Chatterbox marca todo su audio de salida con `perth.PerthImplicitWatermarker` adentro de
+# `generate`, despues de sintetizar. Esta pensado para ser imperceptible, pero MODIFICA la forma de
+# onda que despues medimos con Whisper y con ECAPA. No se desactiva —existe `perth.DummyWatermarker`
+# y algunos forks lo parchean— porque el watermark es parte de lo que el modelo entrega y medir eso
+# es medir lo real. Queda declarado acá y su efecto sobre las metricas es una entrada de
+# ANALYSIS.md: es cuantificable marcando un clip real y midiendo el delta de coseno y de WER.

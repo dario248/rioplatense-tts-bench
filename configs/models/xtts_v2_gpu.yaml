@@ -1,0 +1,69 @@
+# xtts_v2_gpu — el mismo modelo de configs/models/xtts_v2.yaml, para el eje de costo en GPU
+# (SPEC 6.3, 7.3): el subset de costo con la instrumentación de recursos, que los grids publicados
+# son anteriores a ella y por eso no tienen VRAM.
+#
+# Lo único que cambia respecto del base es `name` y `manifest_path`, para que los `generation_id` y
+# los wavs no colisionen con la corrida publicada. `tests/test_repo_hygiene.py` verifica que el
+# resto sea idéntico: si divergen, esta corrida mide otro modelo.
+
+name: xtts_v2_gpu
+adapter: rtb.generate.xtts:XttsAdapter
+
+hf_repo: coqui/XTTS-v2
+# OBLIGATORIO antes de publicar numeros: el commit hash de HuggingFace, no el nombre del repo.
+# Los pesos cambian sin aviso y sin el hash el benchmark deja de ser reproducible (SPEC 5.3).
+# Con null, el adapter baja el snapshot por defecto y RESUELVE el hash igual (el directorio de
+# HuggingFace se llama como el commit), lo loguea y lo escribe en cada fila del manifest. O sea:
+# la primera corrida dice que hash usar; hay que pegarlo acá antes de publicar.
+model_revision: 6c2b0d75eae4b7047358e3b6bd9325f857d43f77
+
+# Presupuesto de referencia del protocolo. Este numero manda: el adapter lo usa para gpt_cond_len,
+# gpt_cond_chunk_len y max_ref_length a la vez, asi que el modelo no puede condicionarse con 12 s
+# mientras el manifest declara 6. Se consume desde el INICIO del clip, y por eso los clips de
+# referencia se construyeron por encima de este valor (ver configs/speakers.yaml).
+max_ref_seconds: 6.0
+
+supports_streaming: true
+default_sample_rate: 24000
+device: cuda
+
+audio_root: audio
+manifest_path: data/latency/xtts_v2_gpu.jsonl
+
+params:
+  language: es
+
+  # Parametros de muestreo. Son los que XTTS-v2 trae en su config.json: la idea es medir el modelo
+  # como lo publican sus autores, no una configuracion que nadie usa. Se declaran igual acá para
+  # que la corrida sea reproducible si el checkpoint cambia, y el adapter avisa cuando el
+  # checkpoint trae otros valores. Fijados una vez: cambiar temperature a mitad del benchmark
+  # invalida la comparacion.
+  temperature: 0.85
+  length_penalty: 1.0
+  repetition_penalty: 2.0
+  top_k: 50
+  top_p: 0.85
+  do_sample: true
+  num_beams: 1
+  speed: 1.0
+
+  # Sin partir el texto: el modelo tiene que arreglarselas con la frase completa, que es
+  # justamente lo que mide la categoria `frase_larga`. Con splitting, el truncamiento se
+  # esconderia detras del chunking.
+  enable_text_splitting: false
+
+  # El clip de referencia entra tal cual: sin normalizar loudness ni recortar silencios. La
+  # normalizacion es cosa de la etapa de metricas, sobre una copia (SPEC 7).
+  sound_norm_refs: false
+  librosa_trim_db: null
+
+  # Los numeros publicados salen del modo entero: es el camino de inferencia estandar y el que da
+  # el audio que se mide. En ese modo ttfb_ms == total_ms, que es el dato correcto — el primer
+  # byte de audio existe cuando termina todo.
+  # Para medir TTFB real se corre un subconjunto con streaming: true, y la fila del manifest queda
+  # marcada con streaming, asi que las dos tandas no se mezclan al agregar latencias.
+  streaming: false
+  stream_chunk_size: 20
+  overlap_wav_len: 1024
+
+  use_deepspeed: false

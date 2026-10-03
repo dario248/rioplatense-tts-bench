@@ -1,0 +1,43 @@
+# Post 2 — a perfect transcript can hide a broken clip.
+#
+# No title card: the first frame IS the spectrogram with WER 0.000 and a tick, because the
+# finding only lands if the viewer first believes the number. The tick becomes a question mark
+# when the playhead crosses the end of the sentence.
+
+lang: en
+title: "WER 0.000, and then"
+title_es: "WER 0,000, y después"
+
+segments:
+  - type: clip
+    source: generation
+    generation_id: xtts_v2__slr61_f_02__lex_001__s5678__ref0
+    label: "{model}"
+    sublabel: "the transcript matched the text, word for word"
+    sublabel_es: "la transcripción coincidió con el texto, palabra por palabra"
+    mark_last_word: true
+    highlight_words: true
+    hold: 1.0
+
+  - type: clip
+    source: generation
+    generation_id: chatterbox_v3__slr61_f_02__pro_003__s5678__ref0
+    label: "{model}"
+    sublabel: "same score, different defect"
+    sublabel_es: "el mismo puntaje, otro defecto"
+    mark_last_word: true
+    highlight_words: true
+    hold: 1.0
+
+  - type: card
+    duration: 7.5
+    title: "Two defects. One label."
+    title_es: "Dos defectos. Una etiqueta."
+    lines:
+      - "XTTS-v2 invents speech: the ASR transcribes words nobody asked for."
+      - "Chatterbox is a vocoder that will not stop: noise, no speech."
+    lines_es:
+      - "XTTS-v2 inventa habla: el ASR transcribe palabras que nadie pidió."
+      - "Chatterbox es un vocoder que no para: ruido, no habla."
+    note: "For an agent, one is a wrong answer and the other is a turn that never closes. No text metric sees either one."
+    note_es: "Para un agente, uno es una respuesta equivocada y el otro es un turno que no cierra. Ninguna métrica de texto ve ninguno de los dos."

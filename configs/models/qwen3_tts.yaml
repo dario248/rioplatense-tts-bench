@@ -1,0 +1,77 @@
+# Qwen3-TTS 12Hz 1.7B Base (QwenLM, Apache-2.0), zero-shot, in-process.
+#
+# Adapter: src/rtb/generate/qwen3.py
+# Entorno: envs/qwen3_tts.txt (Qwen documenta python 3.12).
+#
+# ATENCION con el nombre. `Qwen-Audio-3.0-TTS` (jul 2026) es un producto distinto, comercial y sin
+# pesos; `Qwen3-TTS-Flash` (sep 2025) es la linea hosted anterior, tambien sin pesos. Lo que se
+# mide acá es la linea ABIERTA de enero 2026, variante 12Hz, que es la unica liberada.
+#
+# `-Base` y no `-CustomVoice` ni `-VoiceDesign`: el benchmark mide clonacion zero-shot contra
+# referencias de SLR61. CustomVoice usa 9 timbres fijos del modelo, ninguno nativo de español y
+# con los unicos perfiles dialectales publicados en chino; VoiceDesign no acepta audio de
+# referencia. Ninguno de los dos responde la pregunta.
+
+name: qwen3_tts
+adapter: rtb.generate.qwen3:Qwen3Adapter
+
+hf_repo: Qwen/Qwen3-TTS-12Hz-1.7B-Base
+# Resuelto en la primera corrida y pegado acá, que es lo que pide SPEC 5.3: el adapter baja el
+# snapshot, lee el hash del nombre del directorio de HuggingFace y lo escribe en cada fila. Con el
+# valor fijo acá, el `revision` se pasa a `snapshot_download` y la corrida queda clavada a este
+# commit en vez de a lo que apunte `main` cuando corra la sintesis 540.
+model_revision: fd4b254389122332181a7c3db7f27e918eec64e3
+
+# ── la asimetria de protocolo, y por que ────────────────────────────────────────────────────────
+# Qwen3-TTS clona zero-shot desde un par (audio, TEXTO) —modo ICL— y no desde audio solo. Eso
+# obliga a dos cosas:
+requires_ref_text: true
+
+# `max_ref_seconds` acá es el LARGO DEL CLIP, no un recorte. Qwen no recorta la referencia: su
+# `create_voice_clone_prompt` codifica el audio entero, y el `transcript` de speakers.yaml describe
+# el clip COMPLETO. Recortar el audio a 6 s como hace XTTS dejaria el texto describiendo mas de lo
+# que se oye, o sea un par desalineado, que es la falla MUDA de este modelo: no da error, clona
+# peor. Se probo la alternativa —cortar por prefijo de utterances enteras, que si mantiene el par
+# alineado— y no sirve: da entre 3.70 y 6.55 s segun el hablante, y los dos clips de slr61_m_01
+# son una unica utterance de 6.55 s que no se puede partir. Asi que Qwen recibe 6.5-11.6 s y
+# XTTS-v2 recibe 6.0 s exactos. Queda por fila en `ref_seconds_used`, y va declarado en el README.
+# El valor de acá es el clip mas largo declarado en speakers.yaml, para que el adapter nunca
+# recorte y para que el numero del config no contradiga al del manifest.
+max_ref_seconds: 12.0
+
+# La libreria no expone streaming de generacion: `non_streaming_mode` solo simula entrada de texto
+# en streaming (ver params). Asi que no hay TTFB real que medir, igual que en el modo entero de
+# XTTS: ttfb_ms == total_ms.
+supports_streaming: false
+default_sample_rate: 24000
+device: cuda
+
+audio_root: audio
+manifest_path: data/manifests/qwen3_tts.jsonl
+
+params:
+  # Explicito y no "Auto". El propio protocolo de evaluacion de Qwen usa `language` explicito salvo
+  # en dos test sets puntuales, y "Auto" mete una variable no controlada en un benchmark cuyo tema
+  # ES la variedad de español.
+  language: Spanish
+
+  # Modo ICL: audio + transcripcion. `x_vector_only_mode: true` prescindiria del texto y
+  # restauraria la simetria con XTTS, pero la doc oficial avisa que la calidad de clonado baja, y
+  # medir un modelo en una configuracion degradada que nadie usaria no responde nada.
+  x_vector_only_mode: false
+
+  # TRUE, contra el default de la libreria, que es false. Su propio docstring: con false "solo
+  # simula entrada de texto en streaming". No es streaming de generacion —el wav vuelve completo—
+  # pero alimenta el texto por chunks, y todos los otros modelos del benchmark reciben la frase
+  # entera de una. Dejarlo en el default compararia dos protocolos de entrada distintos.
+  non_streaming_mode: true
+
+  # Lo que Qwen usa en sus evaluaciones publicadas. El resto del sampling queda en los defaults del
+  # generation_config del checkpoint, por la misma razon que en XTTS: medir el modelo como lo
+  # publican sus autores. Fijados una vez; cambiarlos a mitad del benchmark invalida la comparacion.
+  dtype: bfloat16
+  max_new_tokens: 2048
+
+  # La implementacion manual de PyTorch, porque flash-attn no se instala en el entorno (compila
+  # desde fuente y el paquete corre sin el). Cambiarlo cambia los timings, asi que va declarado.
+  attn_implementation: null

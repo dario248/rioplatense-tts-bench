@@ -1,0 +1,27 @@
+# Grilla experimental, COMPARTIDA por todos los modelos.
+#
+# Vive en su propio archivo, no dentro de configs/models/*.yaml, justamente porque la
+# comparabilidad depende de que todos corran las mismas seeds y los mismos clips de referencia.
+# Si cada modelo trajera su lista de seeds, el ranking compararia experimentos distintos.
+
+seeds: [1234, 5678, 9012]
+
+# Indices de ref_clips a usar. El grid es el producto cartesiano
+# speakers x phrases x ref_clip_indices x seeds, asi que este campo es un FACTOR, no un filtro:
+# con [0] son 4 x 45 x 1 x 3 = 540 sintesis por modelo; con [0, 1] son 1080, porque cada
+# combinacion (hablante, frase, seed) se sintetiza otra vez con el segundo clip. Sobre los tres
+# modelos de v0 eso son 1620 sintesis extra para responder una pregunta lateral.
+#
+# Por eso la corrida principal va con [0] y el chequeo de sensibilidad a la referencia se hace
+# aparte y acotado:
+#   python -m rtb.generate --config ... --ref-clip-indices 1 --phrase-ids yei_003,vos_001,lar_001
+ref_clip_indices: [0]
+
+# Sintesis descartables antes de medir latencia: la primera inferencia paga compilacion de
+# kernels y cache frio. Se generan y quedan en el manifest con warmup: true, fuera del grid, para
+# que ninguna celda quede sin un timing usable.
+warmup_syntheses: 3
+
+# Texto de calentamiento: deliberadamente fuera del corpus, para no gastar una frase del
+# benchmark en algo que se descarta.
+warmup_text: "Probando el sistema de sintesis de voz, uno, dos, tres."

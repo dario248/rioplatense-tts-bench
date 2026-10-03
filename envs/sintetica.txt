@@ -1,0 +1,51 @@
+# Entorno de generacion de Sintetica. Sucio y desechable: no comparte nada con el de metricas.
+#
+#   uv venv --python 3.10 .venv-sintetica
+#   uv pip install --python .venv-sintetica -r envs/sintetica.txt
+#   uv pip install --python .venv-sintetica -e .            # el core: pydantic + pyyaml
+#
+#   .venv-sintetica/bin/python -m rtb.generate --config configs/models/sintetica.yaml --dry-run
+#
+# Python 3.10 EXACTO, y no es una preferencia: es la unica version que entra en los dos rangos a
+# la vez. El wheel vendored declara >=3.9,<3.12 y pide torch<2.0, que no publica ruedas para 3.11
+# —torch 2.0 fue la primera con soporte 3.11—; el core del benchmark pide >=3.10. La interseccion
+# es un solo numero.
+#
+# El sistema necesita ademas `espeak-ng` instalado: el phonemizer de coqui lo invoca por binario y
+# sin el la sintesis falla en runtime, no al importar.
+#
+# El fork y los pesos no son publicos: viven en el checkout del servicio, y tanto este archivo
+# como configs/models/sintetica.yaml lo apuntan con SINTETICA_TTS_ROOT. Exportala antes de
+# instalar o de generar:
+#
+#   export SINTETICA_TTS_ROOT=/ruta/al/servicio/sintetica_tts
+#
+# Los pesos NO se instalan: son ~1.8 GB entre los dos checkpoints y el vocoder, y no tiene
+# sentido copiarlos.
+#
+# ESTE ARCHIVO ES LA RECETA, NO EL REGISTRO. Aca van los pines minimos con el motivo de cada uno.
+
+# El fork vendored de coqui, que es lo que corre el servicio. NO es `coqui-tts` de PyPI: el
+# paquete publico tiene otra API y otros pesos. Se instala desde el wheel del repo de la API.
+#
+# El wheel se reemplaza EN SU LUGAR cuando el fork avanza: 0.1.9 dejo de existir el 2026-09-15 al
+# entrar 0.1.10, y con el se llevo la posibilidad de reconstruir el entorno de la corrida anterior.
+# Por eso la version corre en el nombre del archivo y `lib_version` viaja en cada fila: si el
+# manifest dice 0.1.9 y aca dice 0.1.10, son dos mediciones y no una.
+${SINTETICA_TTS_ROOT}/libs/coqui_tts-0.1.10-py3-none-any.whl
+
+# El wheel los declara, pero conviene tenerlos escritos: son los pines que hacen que 3.10 sea
+# obligatorio y los que hay que revisar si algun dia se actualiza el fork.
+torch==1.13.1
+# El wheel pide `torchaudio` sin version y el resolvedor trae el ultimo, que linkea contra CUDA 13
+# y revienta al importar con `libcudart.so.13: cannot open shared object file`. El par de 1.13.1
+# es 0.13.1, y el sintoma no se parece en nada a la causa.
+torchaudio==0.13.1
+numpy==1.22.0
+librosa==0.10.*
+
+# librosa 0.10 importa `pkg_resources` en tiempo de import y uv no siembra setuptools en el venv.
+# Sin esto la carga del modelo falla con ModuleNotFoundError y el motivo no se parece a la causa.
+# El pin es por la version: setuptools 84 saco `pkg_resources`, asi que instalar el ultimo no
+# alcanza — hay que quedarse debajo de 81.
+setuptools<81

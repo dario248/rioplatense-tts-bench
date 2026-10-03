@@ -1,0 +1,59 @@
+# Entorno de la metrica de similitud de hablante (SPEC 7.2). Aparte del de ASR, y en CPU.
+#
+#   uv venv --python 3.11 .venv-simil
+#   uv pip install --python .venv-simil -r envs/speaker_sim.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+#   uv pip install --python .venv-simil -e .            # el core: pydantic + pyyaml
+#
+#   .venv-simil/bin/python -m rtb.metrics.speaker_sim \
+#       --manifest data/manifests/xtts_v2.jsonl --phrases configs/phrases.yaml
+#
+# Verificado el 2026-08-26 en la misma maquina que el resto (driver 550.163.01 = CUDA 12.4):
+#   speechbrain 1.1.0 | torch 2.13.0+cpu | torchaudio 2.11.0+cpu | numpy 2.4.6 | scipy 1.17.1
+#   python 3.11.13 | checkpoint speechbrain/spkrec-ecapa-voxceleb @ 0f99f2d0ebe8
+# Medido: 130 ms por clip embebido, o sea menos de dos minutos para las 540 sintesis mas los pares
+# de la escala. Carga del modelo, 0.9 s.
+#
+# ── POR QUE UN ENTORNO APARTE, y no el de eval como dice SPEC seccion 3 ────────────────────────
+# El SPEC pide UN entorno de evaluacion con whisper y speechbrain juntos. Se probo y se descarto,
+# con dos razones medidas:
+#
+#   1. `uv pip install --dry-run speechbrain` sobre .venv-eval resuelve limpio —no mueve numpy,
+#      ni ctranslate2, ni tokenizers— pero se trae torch 2.13.0 con los wheels de CUDA 13
+#      (nvidia-*-cu13, cuda-toolkit 13.0.3). Esta maquina tiene driver 550, o sea CUDA 12.4: es
+#      exactamente la trampa que ya nos costo una vuelta de debugging en generacion, donde torch
+#      +cu130 dejaba cuda.is_available() en False. Y ctranslate2 no declara las libs de CUDA como
+#      dependencia (linkea cudnn/cublas de afuera), asi que meter un runtime CUDA 13 en el mismo
+#      entorno es un conflicto de LD que el resolvedor NO puede ver y que aparecería recien la
+#      proxima vez que alguien re-transcriba. Las transcripciones ya commiteadas valen; no se
+#      arriesga el entorno que las produjo por comodidad.
+#   2. En CPU la metrica igual corre en menos de dos minutos, asi que la GPU no compra nada. Lo
+#      que si compra: CPU-only no tiene variante de CUDA que elegir, con lo cual este entorno se
+#      instala IGUAL en cualquier maquina. Para la cifra mas facil de discutir de todo el
+#      benchmark —"tu modelo clona la voz a 0.72"— que cualquiera pueda reproducirla sin placa
+#      vale mas que la velocidad.
+#
+# El costo del entorno extra es cero: las etapas se hablan por archivos en disco, no por imports,
+# asi que este pase escribe data/metrics/speaker_sim.jsonl y speaker_scale.jsonl y el resto del
+# reporte los lee sin torch.
+
+# ── el modelo de embeddings ────────────────────────────────────────────────────────────────────
+# speechbrain/spkrec-ecapa-voxceleb, que es el que nombra el SPEC y el estandar de facto para esta
+# medicion. El checkpoint es parte de la identidad de la metrica: los cosenos de dos checkpoints
+# distintos no se comparan entre si, asi que el pase resuelve el commit del snapshot de HF y lo
+# escribe en el `metric_version` de cada fila, igual que el manifest guarda `model_revision`.
+speechbrain
+
+# torch y torchaudio entran como dependencia de speechbrain; el `--extra-index-url .../whl/cpu` de
+# arriba es lo que decide la variante. Sin ese flag uv baja los wheels de CUDA 13 (ver arriba).
+# torchaudio se usa para UNA cosa: resamplear a 16 kHz con interpolacion sinc. No es opcional —
+# ECAPA se entreno a 16 kHz y no resamplea por su cuenta, y pasarle el mismo clip a 22050 Hz da
+# coseno 0.173 contra su propio embedding a 16 kHz, apenas por encima del 0.098 que este benchmark
+# mide entre hablantes DISTINTOS. O sea: sin resample la metrica devuelve ruido, sin error ni
+# warning. Ese mismo resample es el limite de banda a 8 kHz que pide SPEC seccion 7, por Nyquist.
+
+# NO se instala pyloudnorm, que SPEC seccion 7 lista como preprocesamiento comun. Para esta
+# metrica no cambia nada y esta medido: ECAPA normaliza media y varianza de sus propias features, y
+# el coseno del mismo clip escalado -12, -6 y +6 dB es exactamente 1.0. Las metricas espectrales de
+# SPEC 7.4 son otro caso y lo van a necesitar; agregarlo antes seria una dependencia que no hace
+# nada. scipy y soundfile entran solos como dependencias de speechbrain, no se usan directamente.

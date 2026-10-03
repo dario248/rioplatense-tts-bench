@@ -1,0 +1,55 @@
+# OJO con los patrones de directorio: sin barra inicial, git los aplica a CUALQUIER nivel.
+# `models/` a secas tambien ignoraba `configs/models/`, que es justamente lo que hay que
+# commitear. Los directorios que existen solo en la raiz van anclados con `/`.
+
+# Audio generado: se publica como dataset en HuggingFace, no en git (SPEC seccion 9).
+/audio/
+
+# Videos renderizados: se suben a LinkedIn, se regeneran desde tools/videos/storyboards/.
+/media/
+
+# Entornos y caches.
+# Con comodin porque hay un venv POR ETAPA: .venv (core), .venv-xtts, .venv-eval, .venv-simil, y
+# `.venv/` a secas matchea solo el directorio llamado asi. No es la unica defensa —`uv venv`
+# escribe un .gitignore con `*` adentro de cada venv, asi que sus contenidos se auto-ignoran— pero
+# sin esto el directorio en si figura como no ignorado y cualquier herramienta que pregunte por el
+# directorio se confunde.
+.venv*/
+venv*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Pesos y caches de modelos
+/models/
+/checkpoints/
+*.pth
+*.ckpt
+*.safetensors
+.cache/
+
+# Notebooks: salidas limpias antes de commitear
+.ipynb_checkpoints/
+
+# Sistema
+.DS_Store
+# Lock de planillas abiertas: las listas de escucha se editan en LibreOffice/Excel.
+.~lock.*#
+
+# Corpus de referencia: SLR61 se baja, no se commitea (CC BY-SA, y son cientos de MB).
+/data/refs/
+
+# Salida del modelo dummy: es un doble de prueba, no un resultado.
+/data/manifests/dummy.jsonl
+/data/manifests/dummy_resources.json
+
+# Documento de trabajo del set de frases: su contenido ya vive en configs/phrases.yaml.
+/phrases_v0.md
+
+# Screening de duracion: triage recalculable del manifest en dos segundos, no un resultado.
+/data/metrics/duration_screen.jsonl

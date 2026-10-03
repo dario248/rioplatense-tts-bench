@@ -1,0 +1,577 @@
+# Set de evaluacion v0 — 45 frases, 10 categorias.
+#
+# Cada frase existe para exponer UNA falla concreta, escrita en failure_hypothesis. Si no se
+# puede nombrar la falla que la frase busca, la frase no va.
+#
+# Campos:
+#   id                       identificador estable. NO renumerar ni reutilizar.
+#   text                     texto exacto que se pasa al modelo, sin normalizar.
+#   category                 una de las 10 categorias activas.
+#   failure_hypothesis       que se espera que falle y por que.
+#   targets                  segmentos medibles automaticamente. Lista de:
+#                              word:       palabra que EMPIEZA con ll/y (yeismo) o r (rhotic)
+#                              phenomenon: yeismo | rhotic
+#   expected_verbalization   forma hablada esperada, ya normalizada. Obligatoria en
+#                            `normalizacion` y en cualquier frase con digitos.
+#   accepted_alternatives    (opcional) verbalizaciones igualmente validas. El CER se calcula
+#                            contra la opcion de menor distancia.
+#   n_words                  largo del TEXTO ESCRITO. Opcional; si esta, tiene que coincidir con
+#                            el conteo derivado y funciona como checksum.
+#   notes                    (opcional) advertencias de medicion.
+#
+# Reglas que valida el core (rtb.config) y que CI verifica en cada push:
+#   - `id` unico, sin "__" adentro, y no reutilizado de la lista de deprecados.
+#   - `category` dentro de las 10 activas.
+#   - cada `targets[].word` aparece en el texto como palabra entera y EMPIEZA con el fonema
+#     objetivo: el timestamp de palabra de WhisperX marca el inicio del segmento y no hace falta
+#     alineador forzado. Nunca se marca la conjuncion "y" (es la vocal [i]), la <y> final de
+#     "Jujuy" (semivocal), ni fonemas intervocalicos ("calle", "Callao", "perro", "mayo").
+#   - `yeismo_rehilado` necesita al menos un target de yeismo.
+#   - `expected_verbalization` y `accepted_alternatives` ya vienen normalizadas (minusculas, sin
+#     tildes, sin puntuacion), con la misma funcion versionada que usa el pipeline de metricas.
+#
+# El largo que usan las metricas de truncamiento y loop NO es n_words sino n_spoken_words, que se
+# deriva de expected_verbalization: nor_005 son 8 tokens escritos y 24 palabras habladas.
+#
+# IDS DEPRECADOS — no reutilizar: sim_001, sim_002, sim_003, sim_004
+#   La categoria s_implosiva se retiro de v0. Motivo: la aspiracion/elision de /s/ en coda es un
+#   fenomeno de REGISTRO (habla espontanea), no de dialecto. SLR61 es lectura cuidada, asi que
+#   las referencias no aspiran, el comportamiento correcto del modelo es no aspirar, y no hay
+#   falla que detectar. Recuperar en v1 solo si se incorporan referencias de habla espontanea;
+#   ahi si mide algo interesante (si el modelo copia el registro del clip o solamente el timbre).
+#
+# Grid: 45 frases x 4 hablantes x 1 ref_clip x 3 seeds = 540 sintesis por modelo.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# YEISMO REHILADO — 6 frases
+# /ʎ/ y /ʝ/ se realizan como fricativa postalveolar, sonora [ʒ] o sorda [ʃ].
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: yei_001
+  text: "Llovió toda la noche y la calle amaneció inundada."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    Realiza [ʝ] o [j] (aproximante palatal, castellano/mexicano neutro) en vez de
+    la fricativa rioplatense.
+  targets:
+    - {word: "Llovió", phenomenon: yeismo}
+  n_words: 9
+  notes: >
+    "calle" tiene el fonema intervocálico: audible pero NO medible sin alineador forzado.
+
+- id: yei_002
+  text: "Llamalo ya, que la llave está en el llavero."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    Densidad alta del fonema en una frase. Se espera realización inconsistente:
+    algunos modelos rehílan la primera ocurrencia y relajan las siguientes.
+  targets:
+    - {word: "Llamalo", phenomenon: yeismo}
+    - {word: "ya", phenomenon: yeismo}
+    - {word: "llave", phenomenon: yeismo}
+    - {word: "llavero", phenomenon: yeismo}
+  n_words: 9
+  notes: >
+    "Llamalo" es imperativo voseante sin tilde (lla-MA-lo). Riesgo de "llámalo" por tuteo.
+
+- id: yei_003
+  text: "Yo llevo la llanta de auxilio en el baúl."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    "Yo" en posición inicial absoluta es el caso más limpio de medir y el más frecuente
+    en habla real. Falla esperada: [jo] en vez de [ʃo].
+  targets:
+    - {word: "Yo", phenomenon: yeismo}
+    - {word: "llevo", phenomenon: yeismo}
+    - {word: "llanta", phenomenon: yeismo}
+  n_words: 9
+
+- id: yei_004
+  text: "La yerba está en la alacena, al lado del yogur."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    Grafía <y> inicial, uno de ellos préstamo. Riesgo adicional de acentuación
+    peninsular en "yogur" (YO-gur vs yo-GUR).
+  targets:
+    - {word: "yerba", phenomenon: yeismo}
+    - {word: "yogur", phenomenon: yeismo}
+  n_words: 10
+
+- id: yei_005
+  text: "Ese yuyo que crece en la vereda ya llegó hasta la ventana."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    "yuyo" combina OOV regional con el fonema objetivo. Se espera degradación mayor
+    que en palabras frecuentes.
+  targets:
+    - {word: "yuyo", phenomenon: yeismo}
+    - {word: "ya", phenomenon: yeismo}
+    - {word: "llegó", phenomenon: yeismo}
+  n_words: 12
+  notes: >
+    Verificar que Whisper transcriba "yuyo" antes de tomar el timestamp; si falla,
+    descartar ese target y conservar los otros dos.
+
+- id: yei_006
+  text: "¿Llueve? Llevate el paraguas igual."
+  category: yeismo_rehilado
+  failure_hypothesis: >
+    Ambos targets tras pausa: el contexto acústicamente más limpio del set.
+    Control interno — si un modelo falla acá, falla en todos lados.
+  targets:
+    - {word: "Llueve", phenomenon: yeismo}
+    - {word: "Llevate", phenomenon: yeismo}
+  n_words: 5
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ROTICA — 5 frases
+# Vibrante multiple: numero de oclusiones, asibilacion (friccion) y duracion.
+# Se reporta como distancia respecto de la distribucion de los hablantes reales de
+# SLR61, NUNCA como "mas fuerte que X". Ver SPEC 7.4.
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: rot_001
+  text: "Rosario está a tres horas y media de acá."
+  category: rotica
+  failure_hypothesis: >
+    Vibrante en posición inicial absoluta: el caso más limpio de medir de la categoría.
+    Falla esperada: vibrante simple o de una sola oclusión, típica de síntesis
+    entrenada con español neutro.
+  targets:
+    - {word: "Rosario", phenomenon: rhotic}
+  n_words: 9
+
+- id: rot_002
+  text: "La rueda del carro se rompió en la ruta."
+  category: rotica
+  failure_hypothesis: >
+    Tres vibrantes iniciales medibles más un <rr> intervocálico ("carro") de control
+    auditivo. Compara la realización en posición inicial vs. intervocálica.
+  targets:
+    - {word: "rueda", phenomenon: rhotic}
+    - {word: "rompió", phenomenon: rhotic}
+    - {word: "ruta", phenomenon: rhotic}
+  n_words: 9
+
+- id: rot_003
+  text: "Recién llegó del río, con la ropa mojada."
+  category: rotica
+  failure_hypothesis: >
+    Frase de doble fenómeno: tres róticas medibles y un target de yeísmo.
+    Permite chequear si un modelo acierta en un rasgo dialectal y falla en el otro.
+  targets:
+    - {word: "Recién", phenomenon: rhotic}
+    - {word: "llegó", phenomenon: yeismo}
+    - {word: "río", phenomenon: rhotic}
+    - {word: "ropa", phenomenon: rhotic}
+  n_words: 8
+
+- id: rot_004
+  text: "El tren a Retiro sale en cuatro minutos."
+  category: rotica
+  failure_hypothesis: >
+    Grupo /tɾ/ en "tren" y "cuatro": en Argentina tiende a una realización
+    cuasi-retrofleja, casi africada. Es el marcador más audible frente al mexicano
+    o el colombiano, pero requiere alineación intra-clúster → escucha manual.
+    "Retiro" sí es medible automáticamente.
+  targets:
+    - {word: "Retiro", phenomenon: rhotic}
+  n_words: 8
+
+- id: rot_005
+  text: "Pero el perro se quedó en la terraza."
+  category: rotica
+  failure_hypothesis: >
+    Par mínimo /ɾ/ vs /r/ ("pero" / "perro") en el mismo contexto intervocálico.
+    Si el modelo neutraliza la oposición, es una falla grave de inteligibilidad,
+    no solo de acento. Solo escucha manual.
+  targets: []
+  n_words: 8
+  notes: >
+    Buen candidato a audio de ejemplo del README junto con top_001.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VOSEO — 5 frases
+# No se mide fonema sino ACENTUACION. En v0 va a escucha humana (SPEC 7.6).
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: vos_001
+  text: "Vos tenés razón, pero no me lo dijiste antes."
+  category: voseo
+  failure_hypothesis: >
+    "tenés" es oxítona con tilde. Falla esperada: acentuación llana (TÉ-nes) por
+    contaminación de "tienes", o diptongación.
+  targets: []
+  n_words: 9
+
+- id: vos_002
+  text: "Vení para acá y contame qué pasó."
+  category: voseo
+  failure_hypothesis: >
+    "contame" es llana SIN tilde: nada en la ortografía le indica al modelo dónde
+    acentuar. Falla esperada: "contamé" u "cóntame".
+  targets: []
+  n_words: 7
+
+- id: vos_003
+  text: "¿Sabés si podés venir mañana?"
+  category: voseo
+  failure_hypothesis: >
+    Dos oxítonas tildadas dentro de contorno interrogativo: la subida final puede
+    enmascarar o desplazar el acento léxico.
+  targets: []
+  n_words: 5
+
+- id: vos_004
+  text: "Decime la verdad: ¿vos querés que te acompañe?"
+  category: voseo
+  failure_hypothesis: >
+    "decime" llana sin tilde → riesgo de "decimé". Los dos puntos exigen una pausa
+    que muchos modelos ignoran.
+  targets: []
+  n_words: 8
+
+- id: vos_005
+  text: "Si querés, hacelo vos mismo y después me avisás."
+  category: voseo
+  failure_hypothesis: >
+    El test más discriminante del set: "hacelo" es llana (ha-CE-lo) y su equivalente
+    de tuteo es esdrújulo. Un modelo con sesgo peninsular produce "hácelo", que es
+    inmediatamente audible como no rioplatense.
+  targets: []
+  n_words: 9
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENUNCIADOS CORTOS — 4 frases
+# 1-3 palabras. Los modelos autorregresivos fallan con inputs muy cortos: clicks,
+# artefactos, audio alucinado de mas, silencio. Modo de falla directamente relevante
+# para agentes conversacionales, donde buena parte de los turnos son asi.
+# La deteccion de fallo acá NO usa ratio de duracion: usa umbral absoluto (SPEC 7.5).
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: cor_001
+  text: "Dale."
+  category: enunciados_cortos
+  failure_hypothesis: >
+    Backchannel más frecuente del rioplatense. Falla esperada: audio extendido con
+    contenido alucinado, o cola de silencio desproporcionada respecto del contenido.
+  targets: []
+  n_words: 1
+
+- id: cor_002
+  text: "¿Cómo?"
+  category: enunciados_cortos
+  failure_hypothesis: >
+    Una palabra con contorno interrogativo. Falla esperada: contorno plano —
+    sin contexto sintáctico, el modelo no tiene de dónde inferir la entonación.
+  targets: []
+  n_words: 1
+
+- id: cor_003
+  text: "Sí, obvio."
+  category: enunciados_cortos
+  failure_hypothesis: >
+    Coma en enunciado mínimo. Falla esperada: pausa desproporcionada respecto del
+    largo total, o fusión de las dos palabras sin pausa alguna.
+  targets: []
+  n_words: 2
+
+- id: cor_004
+  text: "Ya está."
+  category: enunciados_cortos
+  failure_hypothesis: >
+    Target de yeísmo en enunciado mínimo. Permite comparar la calidad del
+    rehilamiento con muy poco contexto contra la de yei_006 (contexto normal):
+    aísla el efecto del largo del input sobre la realización fonética.
+  targets:
+    - {word: "Ya", phenomenon: yeismo}
+  n_words: 2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LEXICO LOCAL — 5 frases
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: lex_001
+  text: "Se armó un quilombo bárbaro en la esquina."
+  category: lexico_local
+  failure_hypothesis: >
+    Grafía transparente en español: si falla, el problema es del modelo de lenguaje
+    interno, no del G2P. Baseline de la categoría.
+  targets: []
+  n_words: 8
+
+- id: lex_002
+  text: "Me tomé el bondi hasta el laburo."
+  category: lexico_local
+  failure_hypothesis: >
+    Falla esperada: acentuación errónea en "bondi" (BON-di) por tratarlo como
+    préstamo del inglés.
+  targets: []
+  n_words: 7
+
+- id: lex_003
+  text: "El pibe se morfó todo en dos minutos."
+  category: lexico_local
+  failure_hypothesis: >
+    "morfó" es oxítona tildada y OOV: cruza léxico local con acentuación.
+  targets: []
+  n_words: 8
+
+- id: lex_004
+  text: "Posta que no tenía idea, che."
+  category: lexico_local
+  failure_hypothesis: >
+    "che" final requiere contorno descendente de vocativo. Falla esperada: lo
+    pronuncia con acento propio, como palabra léxica plena.
+  targets: []
+  n_words: 6
+
+- id: lex_005
+  text: "Dejate de chamuyar y poné la guita sobre la mesa."
+  category: lexico_local
+  failure_hypothesis: >
+    Dificultad acumulada: OOV ("chamuyar", "guita") más voseo ("dejate" llana,
+    "poné" oxítona).
+  targets: []
+  n_words: 10
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TOPONIMIA — 4 frases
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: top_001
+  text: "Bajate en Callao y caminá dos cuadras."
+  category: toponimia
+  failure_hypothesis: >
+    Test canónico del rehilamiento: [ka'ʃao] en Buenos Aires, [ka'ʎao] en España.
+    Un modelo puede rehilar bien en palabras comunes y fallar acá.
+  targets: []
+  n_words: 7
+  notes: >
+    Fonema intervocálico → no medible automáticamente. Escucha manual obligatoria.
+    Probablemente el mejor audio de ejemplo del README.
+
+- id: top_002
+  text: "El tren a Chacarita sale de Federico Lacroze."
+  category: toponimia
+  failure_hypothesis: >
+    "Lacroze" es apellido francés lexicalizado con pronunciación local (la-CRO-se).
+    Falla esperada: lectura afrancesada o /z/ sonora. Contiene además /tɾ/ en "tren".
+  targets: []
+  n_words: 8
+
+- id: top_003
+  text: "Fuimos de Ushuaia a Neuquén en auto."
+  category: toponimia
+  failure_hypothesis: >
+    "Ushuaia" (yámana) tiene un grupo vocálico inusual; "Neuquén" (mapuche) es
+    oxítona tildada con diptongo <eu> poco frecuente.
+  targets: []
+  n_words: 7
+
+- id: top_004
+  text: "De Jujuy a Purmamarca hay poco más de una hora."
+  category: toponimia
+  failure_hypothesis: >
+    "Jujuy" es oxítona terminada en <y> semivocálica, caso raro en español.
+    "Purmamarca" (quechua) es larga y OOV.
+  targets: []
+  n_words: 10
+  notes: >
+    NO marcar la <y> final de "Jujuy" como target: es semivocal, no fricativa.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NORMALIZACION — 5 frases
+# Metrica primaria: CER contra expected_verbalization. Sin ese campo la categoria no
+# tiene medicion objetiva, asi que el core lo exige.
+# Se compara SIEMPRE texto normalizado contra texto normalizado, con la funcion
+# versionada de rtb.textnorm.
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: nor_001
+  text: "El total es $15.750 con IVA incluido."
+  category: normalizacion
+  expected_verbalization: "el total es quince mil setecientos cincuenta pesos con iva incluido"
+  accepted_alternatives:
+    - "el total es pesos quince mil setecientos cincuenta con iva incluido"
+  failure_hypothesis: >
+    Punto como separador de miles (convención rioplatense, inversa a la inglesa).
+    Falla esperada: "quince coma setecientos cincuenta", o deletreo de dígitos.
+    "IVA" debe leerse como palabra, no deletreada.
+  targets: []
+  n_words: 7
+
+- id: nor_002
+  text: "La inflación de julio fue del 3,5%."
+  category: normalizacion
+  expected_verbalization: "la inflacion de julio fue del tres coma cinco por ciento"
+  accepted_alternatives:
+    - "la inflacion de julio fue del tres punto cinco por ciento"
+  failure_hypothesis: >
+    Coma como separador decimal. Falla esperada: pausa de coma en vez de "coma"
+    léxico, o lectura como dos cifras independientes.
+  targets: []
+  n_words: 7
+
+- id: nor_003
+  text: "El trámite se hace en ARCA, antes AFIP, desde el 25/05/2026."
+  category: normalizacion
+  expected_verbalization: "el tramite se hace en arca antes afip desde el veinticinco de mayo de dos mil veintiseis"
+  failure_hypothesis: >
+    Dos siglas que se leen como palabra, más fecha en formato día/mes/año.
+    Falla esperada: lee la fecha en orden mes/día por sesgo del inglés, o deletrea
+    las siglas letra por letra.
+  targets: []
+  n_words: 11
+
+- id: nor_004
+  text: "Ibas a 120 km/h en una zona de 60."
+  category: normalizacion
+  expected_verbalization: "ibas a ciento veinte kilometros por hora en una zona de sesenta"
+  failure_hypothesis: >
+    Unidad abreviada con barra. Falla esperada: "ka eme barra hache".
+    El "60" sin unidad explícita testea si mantiene el contexto.
+  targets: []
+  n_words: 9
+
+- id: nor_005
+  text: "Llamá al 11 4567-8900 o escribí a info@ejemplo.com.ar."
+  category: normalizacion
+  expected_verbalization: "llama al once cuarenta y cinco sesenta y siete ochenta y nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+  accepted_alternatives:
+    - "llama al once cuatro cinco seis siete ocho nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+    - "llama al once cuatro mil quinientos sesenta y siete ochenta y nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+  failure_hypothesis: >
+    Agrupación de dígitos telefónicos (hay varias convenciones válidas, de ahí las
+    alternativas) y lectura de email con arroba y dominio compuesto.
+    Caso realista de agente de voz.
+  targets:
+    - {word: "Llamá", phenomenon: yeismo}
+  n_words: 8
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ANGLICISMOS — 4 frases
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: ang_001
+  text: "Hice el deploy a producción y se rompió todo."
+  category: anglicismos
+  failure_hypothesis: >
+    "deploy" debe sonar inglés dentro de una frase española sin cortar la prosodia.
+    Falla esperada: lectura españolizada ("de-plói") o cambio abrupto de timbre.
+  targets: []
+  n_words: 9
+
+- id: ang_002
+  text: "Mandame el link por WhatsApp cuando termines."
+  category: anglicismos
+  failure_hypothesis: >
+    "WhatsApp" suele estar lexicalizado en rioplatense ("wasap"): testea si el modelo
+    usa la forma local o la inglesa. "Mandame" agrega el test de acentuación voseante.
+  targets: []
+  n_words: 7
+
+- id: ang_003
+  text: "El modelo de machine learning corre en la GPU."
+  category: anglicismos
+  failure_hypothesis: >
+    Sintagma inglés más sigla deletreada. "GPU" admite ge-pe-u o yi-pi-iu: ambas
+    válidas, pero debe ser CONSISTENTE entre seeds. La inconsistencia es la falla.
+  targets: []
+  n_words: 9
+
+- id: ang_004
+  text: "Tengo un meeting a las tres y después te hago el review del pull request."
+  category: anglicismos
+  failure_hypothesis: >
+    Cuatro anglicismos en frase larga. Falla esperada: acumulación de inestabilidad,
+    drift de timbre o pérdida de identidad del hablante hacia el final.
+  targets: []
+  n_words: 15
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROSODIA — 4 frases
+# En v0 va a escucha humana (SPEC 7.6).
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: pro_001
+  text: "¿En serio hiciste eso?"
+  category: prosodia
+  failure_hypothesis: >
+    Interrogativa total. El contorno rioplatense difiere del peninsular en la subida
+    final. Falla esperada: contorno plano o entonación de declarativa.
+  targets: []
+  n_words: 4
+
+- id: pro_002
+  text: "¡No lo puedo creer!"
+  category: prosodia
+  failure_hypothesis: >
+    Los modelos zero-shot tienden a aplanar la emoción porque el clip de referencia
+    (SLR61, lectura neutra) no la contiene. Diagnostica cuánto pesa la referencia
+    por sobre la puntuación del texto.
+  targets: []
+  n_words: 4
+
+- id: pro_003
+  text: "Mi hermano, el que vive en Córdoba, viene el sábado."
+  category: prosodia
+  failure_hypothesis: >
+    Inciso entre comas: requiere dos pausas y descenso tonal intermedio.
+    Falla esperada: lectura corrida, o pausas uniformes que no marcan el inciso.
+  targets: []
+  n_words: 10
+
+- id: pro_004
+  text: "Bueno... a ver... ¿cómo te explico?"
+  category: prosodia
+  failure_hypothesis: >
+    Muletillas y puntos suspensivos, directamente relevante para agentes.
+    Falla esperada: ignora los suspensivos, o los convierte en pausa mecánica de
+    duración fija sin alargamiento vocálico.
+  targets: []
+  n_words: 6
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FRASE LARGA — 3 frases
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: lar_001
+  text: >-
+    Ayer, cuando salí del laburo, me encontré con que la línea estaba cortada por
+    un paro, así que terminé caminando desde Constitución hasta Once bajo la lluvia
+    y llegué empapado.
+  category: frase_larga
+  failure_hypothesis: >
+    Falla esperada: el rehilamiento se degrada hacia el final de la frase.
+    Comparar estos targets contra los de yei_006 (tras pausa) y cor_004 (contexto
+    mínimo) para cuantificar el efecto de la posición.
+  targets:
+    - {word: "lluvia", phenomenon: yeismo}
+    - {word: "llegué", phenomenon: yeismo}
+  n_words: 30
+
+- id: lar_002
+  text: >-
+    El sistema toma el audio del usuario, lo transcribe con un modelo de
+    reconocimiento, se lo pasa al modelo de lenguaje y después sintetiza la
+    respuesta, todo en menos de un segundo.
+  category: frase_larga
+  failure_hypothesis: >
+    Registro técnico neutro, sin rasgos dialectales marcados. Control de la categoría:
+    aísla el efecto del largo puro sobre la estabilidad. Buen audio de demo.
+  targets: []
+  n_words: 32
+
+- id: lar_003
+  text: >-
+    Si querés que te sea sincero, creo que el problema no es la falta de tiempo
+    sino la manera en que lo organizamos, porque terminamos haciendo mil cosas al
+    mismo tiempo y ninguna nos sale del todo bien.
+  category: frase_larga
+  failure_hypothesis: >
+    La más larga del set (38 palabras), tres subordinadas y voseo inicial.
+    Falla esperada: truncamiento antes del final, o caída de similitud de hablante
+    en el último tercio.
+  targets: []
+  n_words: 38
