@@ -10,22 +10,23 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 > números deja de servir para lo único que tiene que hacer. El detalle vive en las entradas. Se
 > reescribe al cerrar cada sesión.
 
-- **Estado:** los cuatro modelos generados y medidos, **paso 8 cerrado**. Queda el paso 9 —reporte y
-  README— y es todo lo que falta de v0.
-- **Último hito (2026-09-18):** dos mediciones. El coseno contra el clip que la síntesis nunca
-  escuchó cierra **A5 y A10**: los tres modelos puntúan ~0.03 más alto contra el clip que
-  escucharon, casi en la misma medida, así que el orden no se mueve y el número absoluto lleva
-  salvedad. Y la **memoria pico en GPU**, que era lo último que faltaba medir de v0: Qwen ocupa el
-  84 % de una placa de 6 GB y Sintética doce veces menos. → A5 · A10 · SPEC 7.2 · 7.3.
-- **Próximo paso: el README de v0.** No espera ninguna medición. Lo que tiene que declarar sí está
-  escrito, en las entradas: → A16 · A3 · A13 · A15 · A5.
-- **Bloqueado para publicar:** nada. La tasa de fallo se publica como cifra a 0.5 s con sus dos
-  columnas y el barrido debajo, decidido el 2026-09-19. → A13 · A1 · SPEC 7.5.
+- **Estado:** **v0 cerrado y publicado** el 2026-10-03. Los pasos 1 a 9 del SPEC están hechos y el
+  10 es v1.
+- **Último hito (2026-10-17):** infraestructura, y no mueve ningún número. Se congelaron los locks
+  de Qwen, Chatterbox y Sintética —antes lo tenía sólo XTTS— y entró el CI que pedía SPEC 10,
+  tests en 3.10, 3.11 y 3.12 más mypy, con lo que la procedencia de los cuatro manifests se
+  chequea en cada push. → SPEC 8 · 10.
+- **Próximo paso: medir la precisión de los timestamps de palabra.** Es lo que decide el tamaño de
+  7.4, el diferencial de v1: el SPEC pide el 40–60 % central del onset y lo que hay son timestamps
+  de palabra de faster-whisper. Si no alcanzan, hace falta alineamiento forzado. En paralelo va
+  A18, que son minutos. → SPEC 7.4 · A18.
+- **Bloqueado para publicar:** nada.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★ A6 · A18 · ★ A7 · A8 · A9 · A17 · A11 **diferido** a después del README. Ninguno
-  frena el README. → §entradas.
-- **Pendiente de medir:** nada que v0 necesite. Lo que queda son entradas con su costo escrito.
+- **Abiertos:** ★★ A6 · A18 · ★ A7 · A8 · A9 · A17 · A11 **diferida**. Ninguno frena v1.
+  → §entradas.
+- **Pendiente de medir:** nada de v0. Lo que queda para v1 está en SPEC 2, y cada entrada abierta
+  trae su costo escrito.
 
 ---
 
