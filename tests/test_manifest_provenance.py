@@ -32,6 +32,10 @@ NOT_A_REAL_MODEL = {"dummy", "ground_truth", GROUND_TRUTH_MODEL}
 
 _PIN_RE = re.compile(r"^([A-Za-z0-9._-]+)==(.+)$")
 
+# Un wheel local, que es como entra el fork de Sintetica: su nombre de archivo es lo unico que
+# declara nombre y version, porque ese pin no existe en ningun indice.
+_WHEEL_RE = re.compile(r"([A-Za-z0-9._]+)-([^-]+)-[^-]+-[^-]+-[^-]+\.whl$")
+
 
 def committed_manifests(repo_root: Path) -> list[Path]:
     return sorted(
@@ -50,7 +54,23 @@ def parse_lock(path: Path) -> dict[str, str]:
         match = _PIN_RE.match(line)
         if match:
             pins[match.group(1).lower()] = match.group(2)
+            continue
+        wheel = _WHEEL_RE.search(line)
+        if wheel:
+            pins[wheel.group(1).replace("_", "-").lower()] = wheel.group(2)
     return pins
+
+
+def same_build(recorded: str | None, pinned: str | None) -> bool:
+    """El lock pinea la version de distribucion; la fila guarda `torch.__version__`.
+
+    Los wheels del indice de PyTorch llevan el sufijo de CUDA en la version misma y los dos lados
+    coinciden. Los de PyPI no: torch 1.13.1 se instala como 1.13.1 y en runtime se presenta como
+    1.13.1+cu117. Aceptar ese sufijo de mas no afloja el chequeo: otra version sigue fallando.
+    """
+    if recorded is None or pinned is None:
+        return False
+    return recorded == pinned or recorded.startswith(pinned + "+")
 
 
 def manifests(repo_root: Path) -> list[tuple[str, list[GenerationRow]]]:
@@ -191,7 +211,7 @@ def test_manifest_versions_match_the_frozen_lock(repo_root: Path) -> None:
             f"{model}: rows ran {package}=={declared} but {lock_path.name} pins {pinned}"
         )
 
-        assert row.torch_version == pins.get("torch"), (
+        assert same_build(row.torch_version, pins.get("torch")), (
             f"{model}: rows ran torch {row.torch_version} but {lock_path.name} pins "
             f"{pins.get('torch')}"
         )

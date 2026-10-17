@@ -1,6 +1,6 @@
 # Environments
 
-Five environments, never one. The three TTS models pull in mutually incompatible versions of
+Six environments, never one. The TTS models pull in mutually incompatible versions of
 `transformers`, `torch` and `numpy`, so trying to make them share a virtualenv is a fight that
 ends with a benchmark nobody can reproduce. The boundary between stages is files on disk — wavs
 and JSONL — not imports (SPEC section 3).
@@ -93,9 +93,25 @@ stack and then dies. The notebooks mount Drive or write to a bucket so `audio/` 
 
 ## Pinning
 
-Only `envs/*.txt` files that say they are frozen are frozen. Until a model has had its first real
-run, the exact versions are unknown and the file says so. The manifests are the fallback source of
-truth: every row carries the `lib_version`, `torch_version`, `device` and `gpu` that produced it,
-so a published number can always be traced to a stack even when the txt lags behind.
+Two files per model, with different jobs. `envs/<model>.txt` is the **recipe**: the minimum pins
+with the reason for each, and the decisions that are not automatic — the CUDA variant of torch
+depends on the driver, and the wheel on PyPI targets the newest one without checking.
+`envs/<model>.lock.txt` is the **record**: `uv pip freeze` of the machine that generated the
+manifest. It documents what ran, not what to install, and copying it blindly onto another card can
+leave the GPU unused.
+
+The record is not a claim you have to take on trust. `tests/test_manifest_provenance.py` checks on
+every push that the `lib_version` and `torch_version` of the rows are what the lock pins, that all
+of a model's rows share one stack and one checkpoint, and that the recorded revision is a hash and
+not a repo name. Without that, "these numbers came from this stack" rots the moment somebody
+upgrades a package and regenerates half a grid.
+
+The two metric environments have no lock, and the reason is different in each: the ASR one carries
+its instrument identity in every row (`metric_version` names the model, the quantization and the
+library version), and the similarity one is CPU-only, so there is no CUDA variant to freeze.
+
+The manifests remain the fallback source of truth: every row carries the `lib_version`,
+`torch_version`, `device` and `gpu` that produced it, so a published number traces to a stack even
+when a txt lags behind.
 
 **No Docker in v0/v1.** It buys nothing on Colab and nothing here yet.
