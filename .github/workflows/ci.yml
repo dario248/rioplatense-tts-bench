@@ -1,0 +1,38 @@
+# Sin GPU, sin audio y sin red: todo lo que corre acá sale de archivos que están en git.
+# Lo que protege está en SPEC.md, sección 10.
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # El core se instala en los entornos de los cuatro modelos, y ahí los extremos son 3.10
+        # —XTTS pide <3.12— y 3.12, el de Qwen. Si deja de entrar en alguno, el diseño de la
+        # sección 3 se rompe sin que nada más avise.
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Si esto necesita algo pesado para instalarse, el core dejó de ser el core.
+      - run: pip install -e ".[dev]"
+      - run: pytest
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      # La versión de análisis la fija pyproject, así que no cambia con el intérprete.
+      - run: mypy
