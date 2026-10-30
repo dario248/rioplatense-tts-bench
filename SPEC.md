@@ -1267,9 +1267,16 @@ no se pueda auditar. La tabla va en el README:
 **`normalizacion` pasó a "solo escucha", y con evidencia.** Whisper devuelve los números a dígitos:
 una síntesis que dice correctamente "quince mil setecientos cincuenta" vuelve como `15 750`, y
 contra una referencia en palabras eso son 5 errores de 11 sin que el modelo se haya equivocado. Las
-60 filas de la categoría quedan marcadas `unscorable` — detectado, no hardcodeado: cualquier fila
-donde un lado tiene dígitos y el otro no, o donde el ASR escribió un símbolo que se pronuncia
-(`%`, `$`), tiene un alineamiento que mide la convención del ASR y no al modelo.
+60 filas de la categoría quedan marcadas `unscorable`.
+
+**La exclusión es por categoría desde el 2026-10-30, y antes era por detección.** La regla
+detectada sigue viva y sirve para el resto del corpus: cualquier fila donde un lado tiene dígitos y
+el otro no, o donde el ASR escribió un símbolo que se pronuncia (`%`, `$`), tiene un alineamiento
+que mide la convención del ASR y no al modelo. Lo que no cubre es un modelo que **nunca** dice el
+número: si ningún lado trae dígitos no hay conflicto que detectar, sus 60 filas puntúan, y el
+agregado termina comparándolo sobre 540 filas contra modelos medidos sobre 480. Pasó con Pocket
+TTS, que emite palabras inventadas donde van los dígitos. `OUT_OF_SCOPE` en `rtb.metrics.failures`
+aparta la categoría entera, y cualquier modelo nuevo entra ya con el mismo denominador.
 
 Probamos la salida obvia y no sirve: con `initial_prompt` Whisper sí escribe los números en
 palabras, pero no arregla las fechas (`25.05.2026` sigue igual) y **degrada otras cosas** — "AFIP"

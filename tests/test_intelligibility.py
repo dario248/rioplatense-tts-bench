@@ -196,7 +196,7 @@ def test_repetition_without_extra_material_is_not_a_loop() -> None:
 # codigo de clasificacion cambio: subi `TAXONOMY_VERSION` si cambio la CONDUCTA, o repiná el hash
 # acá si fue un comentario. Sin el pin, el campo que declara la version se desactualiza en silencio
 # y dos filas con el mismo `metric_version` salen de reglas distintas.
-CLASSIFIER_SHA256 = "5097c0fd59f81a217388ee9a47bf228bb800741a86b7a6cf31c45f494c38b629"
+CLASSIFIER_SHA256 = "305e96e9915746f475b99012ba11e6b992d5c60376118c8edb49cd4c2ec3aa00"
 
 
 def classifier_digest() -> str:
@@ -458,6 +458,39 @@ def test_a_hard_error_needs_no_transcript() -> None:
     )
     metric = failures.evaluate_row(row, phrase(), None, None, THRESHOLDS, ASR)
     assert metric.values["hard_error"] is True and metric.values["any_failure"] is True
+
+
+def test_a_model_that_never_says_the_number_is_excluded_all_the_same() -> None:
+    """La regla de digitos no se dispara si ninguno de los dos lados los tiene."""
+    row = ok_row(generation_id="g", phrase_id="nor_001", duration_s=2.0)
+    numeric = phrase(
+        id="nor_001",
+        text="El total es $15.750 con IVA incluido.",
+        category="normalizacion",
+        expected_verbalization=(
+            "el total es quince mil setecientos cincuenta pesos con iva incluido"
+        ),
+    )
+    metric = failures.evaluate_row(
+        row,
+        numeric,
+        transcript("El total es la de Ampran, Bocún, Rua de New Conicuerto incluido."),
+        None,
+        THRESHOLDS,
+        ASR,
+    )
+    assert metric.values["unscorable"] is True
+    assert metric.values["reason"] == "normalizacion is out of scope"
+
+
+def test_another_category_with_digits_still_scores() -> None:
+    """La exclusion es por categoria, no por tener numeros: `lexico_local` sigue puntuando."""
+    row = ok_row(generation_id="g", phrase_id="lex_001", duration_s=2.0)
+    spoken = phrase(id="lex_001", text="Vos tenés razón.", category="lexico_local")
+    metric = failures.evaluate_row(
+        row, spoken, transcript("Vos tenés razón."), None, THRESHOLDS, ASR
+    )
+    assert metric.values["unscorable"] is False
 
 
 def test_an_unscorable_row_counts_as_neither(tmp_path: Path) -> None:

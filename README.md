@@ -8,36 +8,45 @@ syllable-final /s/, local vocabulary. This project measures what can be measured
 speaker identity, intelligibility, failure rate and cost — publishes the thresholds that decide
 each number, and says plainly which questions it does **not** answer.
 
-**v0, measured between 2026-08-18 and 2026-09-19.** 45 phrases × 4 speakers × 3 seeds × 3 zero-shot
-models = 1620 syntheses, plus a fourth model that runs out of competition. Every number below comes
-from JSONL committed to this repository, and every threshold from
-[`configs/thresholds.yaml`](configs/thresholds.yaml).
+**v0, measured between 2026-08-18 and 2026-09-19**, plus the first v1 model, measured on
+2026-10-30. 45 phrases × 4 speakers × 3 seeds × 5 zero-shot models = 2700 syntheses, and a sixth
+model that runs out of competition. Every number below comes from JSONL committed to this
+repository, and every threshold from [`configs/thresholds.yaml`](configs/thresholds.yaml).
 
 ## Results
 
-| | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética † |
-|---|---|---|---|---|
-| **speaker identity** (scaled, floor 0 → ceiling 1) | 0.642 | **0.848** | 0.815 | 0.601 ‡ |
-| raw cosine, p50 | 0.586 | 0.725 | 0.703 | 0.559 |
-| **WER**, mean / p95 | 0.106 / 0.500 | **0.012** / 0.100 | 0.108 / 0.417 | 0.060 / 0.400 |
-| CER, mean | 0.078 | **0.005** | 0.120 | 0.031 |
-| **failure rate** | 14.6 % | **0.0 %** | 47.9 % | 0.0 % |
-| the same, without the trailing-audio rule | 7.9 % | **0.0 %** | 3.4 % | 0.0 % |
-| of that, hard errors | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
-| **RTF on GPU**, p50 | **0.252** | 0.910 | 0.617 § | 0.009 |
-| **RTF on CPU**, 4 threads, p50 | 2.486 | 5.396 | 5.597 | **0.047** |
-| **peak VRAM** (reserved) | 2750 MiB | 5166 MiB | 3880 MiB | **318 MiB** |
-| peak RSS on CPU, 4 threads | 4596 MiB | 7093 MiB | 7031 MiB | 2271 MiB |
-| reference audio consumed | 6.0 s | 6.5–11.6 s | 6.0 s | none |
+| | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética † | Pocket TTS 6L ‖ | Pocket TTS 24L ‖ |
+|---|---|---|---|---|---|---|
+| **speaker identity** (scaled, floor 0 → ceiling 1) | 0.642 | **0.848** | 0.815 | 0.601 ‡ | 0.340 | 0.389 |
+| raw cosine, p50 | 0.586 | 0.725 | 0.703 | 0.559 | 0.384 | 0.417 |
+| **WER**, mean / p95 | 0.106 / 0.500 | **0.011** / 0.100 | 0.093 / 0.333 | 0.056 / 0.400 | 0.056 / 0.286 | 0.063 / 0.222 |
+| CER, mean | 0.078 | **0.004** | 0.111 | 0.027 | 0.038 | 0.037 |
+| **failure rate** | 14.6 % | **0.0 %** | 48.1 % | 0.0 % | 3.5 % | 4.4 % |
+| the same, without the trailing-audio rule | 7.9 % | **0.0 %** | 2.7 % | 0.0 % | 3.5 % | 3.5 % |
+| of that, hard errors | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| **RTF on GPU**, p50 | **0.252** | 0.910 | 0.617 § | 0.009 | unsupported path ‖ | unsupported path ‖ |
+| **RTF on CPU**, p50 | 2.486 | 5.396 | 5.597 | **0.047** | 0.419 | 1.378 |
+| threads behind that CPU figure | 4 | 4 | 4 | 4 | 1 ¶ | 1 ¶ |
+| **peak VRAM** (reserved) | 2750 MiB | 5166 MiB | 3880 MiB | **318 MiB** | — | — |
+| peak RSS on CPU | 4596 MiB | 7093 MiB | 7031 MiB | 2271 MiB | **1507 MiB** | 2537 MiB |
+| reference audio consumed | 6.0 s | 6.5–11.6 s | 6.0 s | none | 6.0 s | 6.0 s |
 
 † **Sintética is not a zero-shot model and does not compete.** It is a fine-tune that picks a voice
 by id, and it is in the table because it shares the four speakers, the scale and the instrument.
 ‡ Its similarity is measured against audio that was in its training set, so it is an **upper
 bound**, not a comparable score. § With a process restart every 27 syntheses; the same grid in one
 process drifts to 0.936. Both numbers are real and the difference is explained below.
+‖ **Pocket TTS is a v1 model, and CPU is the device its authors support.** `load_model` takes no
+device and returns on CPU; the GPU is reached by moving the module by hand, so the quality grid ran
+on CPU and the GPU column is left without a published figure. It was measured all the same, as
+verification rather than as a row, under *Cost*. The two variants differ only in transformer depth:
+6 layers and 109.5 M parameters against 24 layers and 336.1 M.
+¶ The library executes `torch.set_num_threads(1)` at import, which overrides `OMP_NUM_THREADS`.
+Raising it afterwards changes nothing — measured at 1, 4 and 8 threads — so the figure is published
+at one thread and compared against four.
 
-Hardware: NVIDIA RTX 4050 Laptop (6141 MiB) for GPU, 4 threads fp32 for CPU. Everything ran
-in-process on the same machine in the same session.
+Hardware: NVIDIA RTX 4050 Laptop (6141 MiB) for GPU, fp32 for CPU. Everything ran in-process on the
+same machine, each model in its own session.
 
 ### How to read them
 
@@ -55,13 +64,15 @@ a synthesis can sit above the ceiling, and 51 of Qwen's 540 do — 38 of which s
 measured against a clip the model never heard, which is the next caveat at its extreme.
 
 **Part of that similarity is the prompt, not the speaker.** Measured against the *other* reference
-clip of the same speaker, every model scores lower: 0.027 in XTTS-v2, 0.032 in Qwen3-TTS and 0.035
+clip of the same speaker, each of the three v0 zero-shot models scores lower: 0.027 in XTTS-v2, 0.032 in Qwen3-TTS and 0.035
 in Chatterbox v3 of raw cosine — 0.040 to 0.053 of scale — with the sign holding in 92 to 96 % of
 each model's 540 cells. It cannot be speaker identity: the two reference clips of one speaker score
 0.853–0.927 against each other, above the ceiling, so a model copying only the voice would score
 the same against both. It is **declared and not subtracted**, because cloning from that prompt is
 the question this benchmark asks. The three carry it almost equally, so the order between them does
-not depend on it; the absolute number does.
+not depend on it; the absolute number does. The second clip was not run for Pocket TTS, so its
+0.340 and 0.389 carry an unmeasured share of the same effect — which would make them lower, not
+higher.
 
 **WER is published next to a real-audio floor.** The same ASR over 12 real recordings of these
 speakers gives WER 0.000, so the transcription is not adding error of its own on this material.
@@ -111,40 +122,49 @@ reach — an intervocalic phoneme, an opposition between two taps, a consonant c
 `normalizacion` is unmeasurable with this instrument, and that is a finding, not an omission:
 Whisper writes numbers back as digits, so a synthesis that correctly says *"quince mil setecientos
 cincuenta"* returns as `15 750` and scores 5 errors out of 11 without the model having made one.
-Its 60 rows per model are marked `unscorable`. Forcing words with `initial_prompt` fixes plain
-numbers, leaves dates in digits and degrades other content ("AFIP" → "Zafip"), so the instrument
-stays uniform and the category is declared out of scope for v0.
+Forcing words with `initial_prompt` fixes plain numbers, leaves dates in digits and degrades other
+content ("AFIP" → "Zafip"), so the instrument stays uniform and the category is declared out of
+scope.
+
+**Its 60 rows per model are now excluded by category, and until 2026-10-30 they were excluded row
+by row** — when one side had digits and the other did not. That heuristic assumed a model would at
+least attempt the number. Pocket TTS does not: it emits invented words where the digits belong, so
+`$15.750 con IVA` comes back as *"la de Ampran, Bocún, Rua de New Conicuerto incluido"* and
+`25/05/2026` as *"el vacío a Breden y Sioux Falls"*. No row of its tripped the rule, and its 60
+would have been averaged in against models whose 60 were already out. **Every model now publishes
+over the same 480 rows**, and what the change cost is under *Two honesty notes* below. That a model has no
+number front-end at all is itself worth knowing before deploying one, and no aggregate here will
+tell you — only this paragraph.
 
 ## Failures
 
 `hard` (no audio), `trunc` (missing words at the end), `loop` (repetition **with** extra material),
 `halluc` (extra words), `trailing` (audible sound after the last word). Percentages are over
-classifiable rows; `normalizacion` is excluded as unscorable.
+classifiable rows: 540 minus the 60 of `normalizacion`, which is out of scope for every model.
 
 | | n | hard | trunc | loop | halluc | trailing | **any** |
 |---|---|---|---|---|---|---|---|
 | XTTS-v2 | 480 | 0.0 | 0.2 | 0.2 | 7.7 | 7.7 | **14.6** |
-| Qwen3-TTS | 482 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
-| Chatterbox v3 | 501 | 0.0 | 0.2 | 1.4 | 3.2 | 45.7 | **47.9** |
-| Sintética | 492 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
+| Qwen3-TTS | 480 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
+| Chatterbox v3 | 480 | 0.0 | 0.0 | 1.5 | 2.7 | 46.2 | **48.1** |
+| Sintética | 480 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
+| Pocket TTS 6L | 480 | 0.0 | 0.0 | 0.8 | 3.5 | 0.0 | **3.5** |
+| Pocket TTS 24L | 480 | 0.0 | 0.0 | 0.0 | 3.5 | 0.8 | **4.4** |
 | *real audio* | 12 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
 
-**Why `n` differs when every model synthesized the same 540 cells.** `n` is the classifiable rows:
-540 minus the ones the ASR makes impossible to score, and all of those are `normalizacion`. The
-rule is per row and detected — one side has digits, the other does not — rather than a category
-switched off, so a model whose output broke the digit pattern keeps those rows. Chatterbox keeps 21
-of them ("El total es 15 con su asiento"), and 9 of the 21 count as failures. Per row that is
-right: garbling an amount that way *is* a failure. Across models it means the four rates are not
-over the same set, so here is the same table on a uniform denominator — `normalizacion` dropped for
-everyone, 480 rows each: Chatterbox goes to **48.1 %**, and to **2.7 %** without the trailing-audio
-rule instead of 3.4 %. The other three do not move a decimal.
+**The denominator is the same for all six, and that took a rule change.** Excluding by detection
+rather than by category kept rows a model happened to garble past the detector: Chatterbox used to
+keep 21 of its 60 ("El total es 15 con su asiento"), of which 9 counted as failures. Per row that
+was right — garbling an amount that way *is* a failure — but across models it compared 480 rows
+against 501. The category is now dropped for everyone.
 
 ### The trailing audio, which is the number that moves
 
 The rule fires on audible sound after the last transcribed word. It is not a false-positive
 machine: the loudest frame of the tail clears −30 dB of the clip's peak in **100 %** of the 268
 flagged rows, all 266 on the original list were listened to, and 265 had something in them — 99.6 %
-precision. But two things about it have to be published with the rate.
+precision. That verification covers the four v0 models; the 4 rows Pocket TTS 24L contributes were
+not listened to. But two things about it have to be published with the rate.
 
 **It is two different defects under one label.** Listening to every flagged row:
 
@@ -175,11 +195,14 @@ depend on a chosen number.
 
 **The tail is really a quantity of seconds**, and as such it is latency the RTF never sees:
 
-| seconds after the last word | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética |
-|---|---|---|---|---|
-| p50 | 0.18 | 0.16 | 0.30 | 0.16 |
-| p95 | 1.10 | 0.34 | **2.40** | 0.32 |
-| rows over 0.5 s | 9.4 % | 0.7 % | **43.3 %** | 1.1 % |
+| seconds after the last word | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética | Pocket 6L | Pocket 24L |
+|---|---|---|---|---|---|---|
+| p50 | 0.18 | 0.16 | 0.30 | 0.16 | **0.10** | **0.10** |
+| p95 | 1.10 | 0.34 | **2.40** | 0.32 | **0.24** | 0.26 |
+| rows over 0.5 s | 9.4 % | 0.7 % | **43.3 %** | 1.1 % | 1.1 % | 1.3 % |
+
+The two Pocket variants close a turn faster than anything else here, real audio included, and that
+is the one axis where they lead.
 
 ## Cost
 
@@ -192,8 +215,17 @@ from the full grid, CPU numbers from a stratified subset of 8 phrases × 2 speak
 | Qwen3-TTS | 0.910 | 1.043 | 10.535 | 5.396 | 1.84× |
 | Chatterbox v3 | 0.617 | 0.723 | 10.019 | 5.597 | 1.82× |
 | Sintética | 0.009 | 0.027 | 0.103 | **0.047** | 2.10× |
+| Pocket TTS 6L | *0.093* | *0.105* | **0.419** | n/a | 1.00× |
+| Pocket TTS 24L | *0.251* | *0.282* | 1.378 | n/a | 1.00× |
 
 ‖ Median of the per-cell ratio between one and four threads, over the same 48 cells.
+Pocket's GPU figures are in italics because the GPU is not its supported path: they verify the
+speed-up and are not published as a row. They are worth stating because they are larger than the
+~2.6× its authors report on a T4 — 4.2× for the 6-layer variant and 5.0× for the 24-layer one,
+never below 3.2× on any single cell — and because the 24-layer variant only crosses into real time
+there. Its `n/a` for four threads is not a gap: the library pins one thread at import, and forcing
+four or eight moves the figure by less than the noise between repetitions (6L: 0.416, 0.425, 0.439;
+24L: 1.255, 1.243, 1.336).
 **How much threads buy is a property of the model, not of the machine**, and assuming it from one
 model would have given the wrong number for the others.
 
@@ -210,7 +242,10 @@ syntheses, because in one long process it degrades monotonically from 0.65 to 1.
 times is cheaper than carrying the drift, and the control is that the restarted run returned audio
 of identical duration in 540 of 540 cells.
 
-**Only one of the four reaches real time on CPU**, and it is the one that does not clone.
+**Two of the six reach real time on CPU**: the one that does not clone, and the 6-layer Pocket,
+which does it on a single core with the smallest memory footprint in the table. That is the family
+v0 was missing — the other three zero-shot models ask for 4.6 to 7.1 GB of RSS and none of them
+gets near real time there.
 
 ## Protocol asymmetries
 
@@ -229,6 +264,12 @@ that hides them is not comparable:
 - **Sintética receives no reference at all**: it selects a voice by id. Its similarity answers a
   different question from the zero-shot rows, and its 0.601 is an upper bound because the clips it
   is measured against were in its training data.
+- **Pocket TTS splits the text into chunks of at most 50 tokens**, the other models receive the
+  sentence whole. Nothing in this phrase set reaches that length, so no row was actually split, but
+  the path differs and a longer corpus would exercise it.
+- **Pocket TTS runs on CPU and the rest on GPU.** The grid definition does not include the device,
+  so the quality comparison holds; what changes is that its RTF column is the CPU one, which is
+  also the shared column where every model has a figure.
 
 ## Two honesty notes
 
@@ -241,14 +282,15 @@ misattributed in the model with fewest failures, and 99.6 % precision on the tai
 **differences below half a percentage point are not published as differences**. This bounds false
 positives only — nobody listened to the 538 rows that passed clean.
 
-**Three taxonomy rules changed between 2026-09-14 and 2026-09-16, and they moved only the
-in-house model.** Stated plainly because it is the objection any reader should make:
+**Four taxonomy rules changed, and the first three moved only the in-house model.** Stated plainly
+because it is the objection any reader should make:
 
 | | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética |
 |---|---|---|---|---|
 | boundary cut 0.10 → 0.12 | 7.9 → 7.7 % | 0.0 % | 3.4 → 3.2 % | **1.9 → 0.0 %** |
 | third loop condition | 14.6 % | 0.0 % | 47.9 % | **2.4 → 0.6 %** |
 | `trailing_disagreement` precedence | 14.6 % | 0.0 % | 47.9 % | **0.6 → 0.0 %** |
+| `normalizacion` out by category | 14.6 % | 0.0 % | **47.9 → 48.1 %** | 0.0 % |
 
 The three zero-shot models move 0.2 points in total; Sintética moves 2.5. Two structural reasons,
 both verifiable: it is the only deterministic model, so one bad cell appears three times with
@@ -258,6 +300,16 @@ session, not the result: the boundary cut because the models do say "bondi" and 
 character, the loop condition because it was written in the spec and not implemented and its sweep
 has a wide plateau, the precedence because a transcript missing ten words at the end cannot be
 charged with extra material.
+
+**The fourth change is from 2026-10-30 and breaks that pattern: it moves Chatterbox and leaves
+Sintética alone.** A model that never verbalizes a number showed that excluding `normalizacion` by
+detection was not excluding it at all. On the failure rate the change is worth 0.2 points, but on
+intelligibility it is the largest of the four — Chatterbox's mean WER goes from 0.108 to 0.093 and
+its CER from 0.120 to 0.111, Sintética's WER from 0.060 to 0.056, Qwen's from 0.012 to 0.011, and
+XTTS does not move because its 60 rows were already out. **Every figure in this README is the
+post-change one**, so the v0 numbers published on 2026-10-03 differ. That a rule written for a new
+model ends up favouring the one that looks worst here is the best evidence it was not written
+looking at the result.
 
 ## The phrase set
 

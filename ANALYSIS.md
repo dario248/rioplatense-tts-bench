@@ -10,23 +10,24 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 > números deja de servir para lo único que tiene que hacer. El detalle vive en las entradas. Se
 > reescribe al cerrar cada sesión.
 
-- **Estado:** **v0 cerrado y publicado** el 2026-10-03. Los pasos 1 a 9 del SPEC están hechos y el
-  10 es v1.
-- **Último hito (2026-10-17):** infraestructura, y no mueve ningún número. Se congelaron los locks
-  de Qwen, Chatterbox y Sintética —antes lo tenía sólo XTTS— y entró el CI que pedía SPEC 10,
-  tests en 3.10, 3.11 y 3.12 más mypy, con lo que la procedencia de los cuatro manifests se
-  chequea en cada push. → SPEC 8 · 10.
+- **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
+  variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
+- **Último hito (2026-10-30):** Pocket TTS entero, y mueve números de v0. Es el primero cuyo
+  dispositivo soportado es la CPU, y el primero que no verbaliza números: eso obligó a excluir
+  `normalizacion` por categoría y no por detección, con lo que los seis modelos pasan a publicar
+  sobre las mismas 480 filas y el WER de Chatterbox y de Sintética baja. → A6 · A16 · SPEC 6.3.
 - **Próximo paso: medir la precisión de los timestamps de palabra.** Es lo que decide el tamaño de
   7.4, el diferencial de v1: el SPEC pide el 40–60 % central del onset y lo que hay son timestamps
-  de palabra de faster-whisper. Si no alcanzan, hace falta alineamiento forzado. En paralelo va
-  A18, que son minutos. → SPEC 7.4 · A18.
+  de palabra de faster-whisper. Si no alcanzan, hace falta alineamiento forzado. En paralelo van
+  A18 y A19, que son minutos cada uno. → SPEC 7.4 · A18 · A19.
 - **Bloqueado para publicar:** nada.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★ A6 · A18 · ★ A7 · A8 · A9 · A17 · A11 **diferida**. Ninguno frena v1.
-  → §entradas.
-- **Pendiente de medir:** nada de v0. Lo que queda para v1 está en SPEC 2, y cada entrada abierta
-  trae su costo escrito.
+- **Abiertos:** ★★ A6 · A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 · A11 **diferida**. Ninguno frena
+  v1. → §entradas.
+- **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
+  similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
+  escrito.
 
 ---
 
@@ -58,8 +59,9 @@ información.
 
 ## Estado de los datos en disco
 
-Al 2026-09-18, contra `configs/grid.yaml` (45 frases × 4 hablantes × 3 seeds × 1 clip de
-referencia). **Los cuatro modelos de v0 están generados y medidos.**
+Al 2026-10-30, contra `configs/grid.yaml` (45 frases × 4 hablantes × 3 seeds × 1 clip de
+referencia). **Los cuatro modelos de v0 y las dos variantes de Pocket TTS están generados y
+medidos.**
 
 | archivo | líneas | ids | contenido |
 |---|---|---|---|
@@ -67,16 +69,18 @@ referencia). **Los cuatro modelos de v0 están generados y medidos.**
 | `data/manifests/qwen3_tts.jsonl` | 543 | 543 | 540 del grid + 3 warm-up |
 | `data/manifests/chatterbox_v3.jsonl` | 543 | 543 | ídem |
 | `data/manifests/sintetica.jsonl` | 1086 | 546 | el grid con el fork 0.1.9 y otra vez con el 0.1.10 |
+| `data/manifests/pocket_tts_es.jsonl` | 543 | 543 | 540 del grid + 3 warm-up, **en CPU** (SPEC 6.3) |
+| `data/manifests/pocket_tts_es_24l.jsonl` | 543 | 543 | ídem, variante de 24 capas |
 | `data/manifests/*_ref1.jsonl` | 543–600 | ídem | el grid con el segundo clip de referencia (A10). Chatterbox trae 60 warm-up, uno por reinicio (A14) |
 | `data/manifests/ground_truth.jsonl` | 12 | 12 | audio real (8 control + 4 calibración) |
-| `data/metrics/transcripts.jsonl` | 2172 | | 540 × 4 + 12 |
-| `data/metrics/audio_shape.jsonl` | 2172 | | envolvente de energía |
-| `data/metrics/speaker_sim.jsonl` | 3780 | | coseno contra el clip que la fila escuchó: 540 × 7 |
-| `data/metrics/speaker_sim_unseen.jsonl` | 3780 | | el mismo audio contra el **otro** clip del hablante (A5, A10) |
+| `data/metrics/transcripts.jsonl` | 3252 | | 540 × 6 + 12 |
+| `data/metrics/audio_shape.jsonl` | 3252 | | envolvente de energía |
+| `data/metrics/speaker_sim.jsonl` | 4860 | | coseno contra el clip que la fila escuchó: 540 × 9 |
+| `data/metrics/speaker_sim_unseen.jsonl` | 3780 | | el mismo audio contra el **otro** clip del hablante (A5, A10). **No cubre a Pocket** |
 | `data/metrics/speaker_scale.jsonl` | 22 | | techo, piso, techo corto, diagnósticos |
-| `data/metrics/failures.jsonl` | 2172 | | WER/CER + taxonomía |
-| `data/latency/*_cpu_t{1,4}.jsonl` | 51 | | el subset de costo en CPU, a 1 y a 4 hilos (SPEC 6.3) |
-| `data/latency/*_gpu.jsonl` | 51 | | el mismo subset en GPU, sólo para instrumentar memoria (A17) |
+| `data/metrics/failures.jsonl` | 3252 | | WER/CER + taxonomía |
+| `data/latency/*_cpu_t{1,4}.jsonl` | 51 | | el subset de costo en CPU, a 1 y a 4 hilos (SPEC 6.3). Pocket sólo tiene `_t1` |
+| `data/latency/*_gpu.jsonl` | 51 | | el mismo subset en GPU. En los de v0, sólo para instrumentar memoria (A17); en Pocket, para verificar la aceleración |
 | `data/latency/*_resources.json` | | | pico de RSS y de VRAM de cada una de esas corridas |
 
 Los manifests son append-only y vale la última fila de cada id: las 1086 líneas de Sintética son sus
@@ -93,27 +97,38 @@ el arreglo llegó en 0.1.10, que es la versión medida acá: las 540 celdas sale
 
 Números de referencia para leer todo lo de abajo:
 
-| | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética (fuera de competencia) |
-|---|---|---|---|---|
-| tasa de fallo, con `trailing_audio` | 14.6 % | **0.0 %** | 47.9 % | **0.0 %** |
-| **la misma, sin esa regla** | **7.9 %** | **0.0 %** | **3.4 %** | **0.0 %** |
-| de eso, error duro | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
-| `boundary_disagreement` (no es falla) | 0.6 % | 0.2 % | 0.4 % | 4.3 % |
-| `trailing_disagreement` (no es falla) | 0.0 % | 0.2 % | 0.2 % | 0.6 % |
-| WER medio | 0.106 | 0.012 | 0.108 | 0.060 |
-| similitud escalada (piso→techo) | 0.642 | 0.848 | 0.815 | **0.601**, y es una cota (A15) |
-| RTF p50, GPU | 0.252 | 0.910 | **0.617** (con reinicio cada 27, ver A14) | **0.009** |
-| RTF p50, CPU 4 hilos | 2.485 | 5.393 | 5.578 | **0.047** |
-| VRAM pico reservada | 2750 MiB | **5166 MiB** | 3880 MiB | **318 MiB** |
-| habla pedida p50 | 2.48 s | 2.08 s | 2.07 s | 1.92 s |
-| cola p50 / p95 | 0.18 / 1.10 s | 0.16 / 0.34 s | 0.30 / 2.40 s | **0.16 / 0.32 s** |
-| no-habla p50 | 0.38 s | 0.60 s | 1.48 s | 0.51 s |
-| segundos de referencia | 6.0 | 6.5–11.6 | 6.0 | ninguno: elige la voz por id |
+Todos sobre las **mismas 480 filas puntuables**, desde que `normalizacion` se excluye por categoría
+(A6). Las columnas de v0 son post-cambio y difieren del README publicado el 2026-10-03; el delta
+está en A16.
+
+| | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética (fuera de competencia) | Pocket 6c | Pocket 24c |
+|---|---|---|---|---|---|---|
+| tasa de fallo, con `trailing_audio` | 14.6 % | **0.0 %** | 48.1 % | **0.0 %** | 3.5 % | 4.4 % |
+| **la misma, sin esa regla** | **7.9 %** | **0.0 %** | **2.7 %** | **0.0 %** | **3.5 %** | **3.5 %** |
+| de eso, error duro | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| `boundary_disagreement` (no es falla) | 0.6 % | 0.2 % | 0.4 % | 2.5 % | 0.8 % | 0.4 % |
+| `trailing_disagreement` (no es falla) | 0.0 % | 0.2 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| WER medio | 0.106 | 0.011 | 0.093 | 0.056 | 0.056 | 0.063 |
+| CER medio | 0.078 | 0.004 | 0.111 | 0.027 | 0.038 | 0.037 |
+| similitud escalada (piso→techo) | 0.642 | 0.848 | 0.815 | **0.601**, y es una cota (A15) | **0.340** | **0.389** |
+| RTF p50, GPU | 0.252 | 0.910 | **0.617** (con reinicio cada 27, ver A14) | **0.009** | 0.093, fuera del camino soportado | 0.251, ídem |
+| RTF p50, CPU | 2.485 (4 hilos) | 5.393 (4 hilos) | 5.578 (4 hilos) | **0.047** (4 hilos) | **0.419** (1 hilo) | 1.378 (1 hilo) |
+| VRAM pico reservada | 2750 MiB | **5166 MiB** | 3880 MiB | **318 MiB** | — | — |
+| RSS pico en CPU | 4596 MiB | 7093 MiB | 7031 MiB | 2271 MiB | **1507 MiB** | 2537 MiB |
+| habla pedida p50 | 2.48 s | 2.08 s | 2.07 s | 1.92 s | 2.12 s | 2.02 s |
+| cola p50 / p95 | 0.18 / 1.10 s | 0.16 / 0.34 s | 0.30 / 2.40 s | 0.16 / 0.32 s | **0.10 / 0.24 s** | **0.10 / 0.26 s** |
+| no-habla p50 | 0.38 s | 0.60 s | 1.48 s | 0.51 s | 0.64 s | 0.50 s |
+| segundos de referencia | 6.0 | 6.5–11.6 | 6.0 | ninguno: elige la voz por id | 6.0 | 6.0 |
 
 **Sintética se midió dos veces**, con el fork 0.1.9 (2026-09-14) y con el 0.1.10 (2026-09-16), que
 arregla el crash de `pro_004`. Los números de arriba son los del 0.1.10. De las 45 frases, **40
 salen idénticas byte a byte** entre las dos versiones; cambian las cuatro de `normalizacion`, por el
 arreglo del regex de números, y aparece `pro_004`. Ninguna conclusión se movió.
+
+**Las dos variantes de Pocket difieren sólo en profundidad del transformer**: 6 capas y 109.5 M de
+parámetros —89.4 M de `flow_lm` más 20.1 M de Mimi— contra 24 capas y 336.1 M. Corrieron en CPU
+porque es el dispositivo que sus autores soportan (SPEC 6.3), con la misma grilla y los mismos
+clips que los otros cuatro.
 
 **Las dos primeras filas son el titular del análisis y están en A13.** La regla domina la tasa de
 fallo de Chatterbox y la invierte: con la regla es el peor modelo por lejos, sin la regla es el
@@ -541,6 +556,25 @@ y las aparta en vez de contarlas como fallas, y por eso la categoría se movió 
 SPEC 7.6, con la evidencia. Se probó `initial_prompt` de Whisper y se rechazó: arregla los números
 planos, deja las fechas en dígitos y degrada otro contenido ("AFIP" → "Zafip").
 
+**Decidido el 2026-10-30: la categoría se excluye entera, por categoría y no por detección.** Lo
+forzó Pocket TTS, que no verbaliza números: emite palabras inventadas donde van los dígitos, así
+que ningún lado de la comparación los tiene y la regla de conflicto de formato no se dispara. Sus
+60 filas puntuaban —0/60 no puntuables contra 60/60 de XTTS— y el agregado comparaba 540 filas
+contra 480.
+
+| frase | lo que transcribe el ASR sobre el audio de Pocket |
+|---|---|
+| `$15.750 con IVA incluido` | *"la de Ampran, Bocún, Rua de New Conicuerto incluido"* |
+| `desde el 25/05/2026` | *"desde el vacío a Breden y Sioux Falls"* |
+| `Llamá al 11 4567-8900` | *"llamaba la primera mero por su progreso vi así vi"* |
+
+`OUT_OF_SCOPE` en `rtb.metrics.failures` lo implementa y `TAXONOMY_VERSION` sube a 2. **Los seis
+modelos publican sobre las mismas 480 filas.** Lo que movió está en A16.
+
+**Lo que la exclusión se lleva puesto, y hay que decirlo:** que un modelo no tenga front-end de
+números deja de ser visible en ningún agregado. Es un defecto grave para producción y ahora vive
+sólo en prosa, en el README y acá. Mientras la categoría no sea medible, no hay mejor lugar.
+
 **Por qué importa.** Son 60 filas por modelo, un octavo del grid, sin ningún número publicable. Y la
 normalización de texto es de lo más útil de saber para elegir un TTS en producción.
 
@@ -606,10 +640,18 @@ s por segundo de audio, que es el RTF medido) pero **eso es inferencia, no medic
 
 **Pregunta.** ¿Cuánto tarda cada modelo en entregar el primer audio?
 
-**Estado.** Hoy `ttfb_ms == total_ms` en los dos modelos, y es el dato correcto: sin streaming de
+**Estado.** Hoy `ttfb_ms == total_ms` en todos, y es el dato correcto: sin streaming de
 generación el primer audio existe cuando termina todo. Pero XTTS **sí** puede streamear
 (`inference_stream`), así que su TTFB real es medible y sería mucho más bajo. Qwen no: su
 `non_streaming_mode` sólo simula entrada de texto en streaming, no generación (SPEC 6.4).
+
+**Desde el 2026-10-30 hay un segundo candidato, y es el que más lo necesita.** Pocket TTS expone
+`generate_audio_stream`, el adapter tiene el camino implementado y el config lo declara con
+`supports_streaming: true`, pero la grilla entera corrió con `streaming: false` y no existe ninguna
+tanda que lo mida. Es el modelo con la mejor cola post-habla de los seis (p95 de 0.24 s) y el único
+que corre en tiempo real sobre un core, así que el TTFB en streaming es justamente el número que
+decidiría si sirve para un turno conversacional. Cuesta lo mismo que el de XTTS: un config con
+`streaming: true` y su propio manifest.
 
 **Por qué importa.** Para un agente conversacional el TTFB manda más que el RTF, y es la única
 métrica donde XTTS podría ganar por un orden de magnitud en vez de por 3.6×.
@@ -828,6 +870,9 @@ los otros dos modelos no lo tienen.
 **Por qué importa.** Si el efecto no es cero, Chatterbox arrastra una penalidad que XTTS-v2 y
 Qwen3-TTS no pagan, y la comparación tiene un sesgo sistemático de un solo lado. Aunque el efecto
 sea despreciable, hay que poder decir el número.
+
+**Sigue siendo el único.** Verificado el 2026-10-30 al incorporar Pocket TTS: su librería no
+menciona `perth` ni ninguna marca de agua, así que la asimetría no se amplía.
 
 **Qué necesita.** Nada de GPU ni de generación nueva: aplicar el watermarker a los **clips reales de
 control**, que ya están medidos sin marcar, y volver a medir. El delta de WER y de coseno sobre el
@@ -1232,6 +1277,20 @@ lado, el 0.0 % no vale nada — y da lo mismo que la respuesta sea buena.
 Los tres zero-shot se mueven **0.2 puntos en total**, y sólo con el primero. Sintética se mueve
 2.5. El patrón es real y no se esconde.
 
+**El cuarto cambio, del 2026-10-30, rompe el patrón: mueve a Chatterbox y no toca a Sintética.** Es
+la exclusión de `normalizacion` por categoría (A6), y en tasa de fallo vale 0.2 puntos, pero en
+inteligibilidad es el más grande de los cuatro:
+
+| | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética |
+|---|---|---|---|---|
+| tasa de fallo | 14.6 % | 0.0 % | **47.9 → 48.1 %** | 0.0 % |
+| WER medio | 0.106 | 0.012 → 0.011 | **0.108 → 0.093** | **0.060 → 0.056** |
+| CER medio | 0.078 | 0.005 → 0.004 | **0.120 → 0.111** | **0.031 → 0.027** |
+
+XTTS no se mueve porque sus 60 filas ya estaban afuera. Que el cambio favorezca a Chatterbox —el
+modelo que peor queda en el README— es la mejor prueba de que la regla no se escribió mirando el
+resultado.
+
 **Por qué pasa, que no es "se ajustó al modelo".** Dos razones estructurales, las dos verificables:
 
 1. **Es el único modelo determinístico.** Un error de una celda le aparece **tres veces**, una por
@@ -1296,8 +1355,24 @@ lo que hay que hacer es declarar el sesgo del subset o medir más celdas. Si **n
 propiedad de las sesiones cortas, y entonces es información útil en vez de un artefacto: un
 deployment que levanta el modelo por turno paga eso mismo.
 
+**Un dato nuevo del 2026-10-30, en CPU y mucho más grande.** Pocket TTS corrió las mismas 48 celdas
+dentro de la grilla y otra vez como subset, y la corrida corta dio **+12 %** (6 capas) y **+14 %**
+(24 capas) —0.377 → 0.419 y 1.212 → 1.378—. El audio salió **byte-idéntico** en 48 de 48 celdas,
+así que el cómputo fue el mismo y la diferencia es wall clock puro.
+
+No es el mismo mecanismo que arriba, o al menos no sólo: la corrida corta de CPU se hizo con el
+escritorio ocupado —VS Code y Brave comiéndose unos 0.7 cores, load average 2.3— donde la
+descartada de temperatura se midió sobre GPU. Queda como hipótesis y no como conclusión, porque no
+se corrió el control en máquina quieta.
+
+**Lo que sí cambia la lectura:** esa banda es **más grande que el error de diseño del subset**, que
+el SPEC 6.3 deriva en ±2 %. O sea que el N de 48 celdas no es la incertidumbre dominante de la
+tabla de costo, y medir más celdas no la achica.
+
 **Costo de cerrarlo:** correr el subset de XTTS con N creciente —48, 96, 192— y ver si el delta se
-achica. Diez minutos de placa, sin tocar código: es `--phrase-ids` con más frases.
+achica. Diez minutos de placa, sin tocar código: es `--phrase-ids` con más frases. Y para la parte
+de CPU, repetir el subset de Pocket con el escritorio cerrado: cinco minutos y separa las dos
+causas.
 
 **Qué va al README mientras tanto.** Una línea: el RTF de CPU sale de un subset y el de GPU del
 grid, y esa asimetría vale unos puntos porcentuales a favor de la GPU, medidos acá.
@@ -1340,6 +1415,61 @@ factible igual de barato: en Sintética el vocoder es un componente separable y 
 está enredado con el acústico. Si se mide, se mide para uno y se declara que los otros no.
 
 **De dónde salió:** de escuchar los samples, el 2026-09-19. Ninguna métrica lo insinuó.
+
+---
+
+## A19 ★★ — La similitud de Pocket es la más baja de las seis: ¿identidad o canal?
+
+**Pregunta.** Las dos variantes quedan últimas por lejos —0.340 y 0.389 de escala contra
+0.601–0.848 del resto— y el 11.1 % de las filas de la chica cae por debajo de 0.221, que es el
+coseno más alto que alcanzó un par de hablantes **distintos**. ¿El modelo clona mal, o ECAPA está
+castigando el códec?
+
+**Por qué importa.** Es el número que decide si el modelo sirve para clonar una voz, y es la única
+dimensión donde pierde. Si una parte del déficit es el canal, la diferencia real con XTTS —0.30 de
+escala— se achica, y el modelo pasa de descartado a candidato con reservas.
+
+**Lo que ya está descartado, medido el 2026-10-30:**
+- **No es el presupuesto de referencia.** Recibe los mismos 6.0 s que XTTS, Chatterbox y Sintética,
+  y encodea 6.08 de ellos: `end_on_pause` corta el silencio final y agrega 80 ms de pausa, nada
+  más. Chatterbox saca 0.815 con el mismo presupuesto.
+- **No es la duración de la salida.** Apareando por banda de habla, en la de 2 a 3 s —la más
+  poblada, y con n comparable en los seis— el orden no se mueve: Qwen 0.862, Chatterbox 0.817,
+  Sintética 0.648, XTTS 0.610, Pocket 24c 0.418, Pocket 6c 0.359.
+- **No es sólo los enunciados cortos.** Concentran 39 de las 60 filas al nivel del piso y su escala
+  es **−0.070**, debajo del piso, pero sacarlos deja el déficit casi entero.
+
+**Por qué el canal es sospechoso.** Es la misma pregunta que A18 le hace a Sintética, y en este
+proyecto ECAPA ya castigó el canal dos veces. Pocket decodifica con Mimi a 24 kHz, un códec neural
+de 12.5 cuadros por segundo: es la tubería más angosta de las seis y ninguno de los otros cinco
+pasa por una igual.
+
+**Qué necesita.** Lo mismo que A18: pasar los `control_clips` **reales** por el códec —encodear y
+decodear sin sintetizar— y volver a medir el coseno contra el original. El delta sobre audio real
+es exactamente el costo del canal, sin modelo de por medio. Corre en `.venv-pocket` más
+`.venv-simil`, son minutos y no necesita GPU.
+
+**Qué significaría cada resultado.** Si el delta sobre audio real es ≥ 0.1 de escala, una parte del
+déficit es instrumento y hay que publicar las dos cifras. Si es despreciable —como dio el watermark
+en A12— entonces 0.340 es el modelo clonando, y es un resultado y no un artefacto.
+
+---
+
+## A20 ★ — Pocket no tiene front-end de números, y ningún agregado lo dice
+
+**Pregunta.** Ninguna, por ahora: el hecho está medido. Lo que queda abierto es dónde vive.
+
+**El hecho.** No verbaliza números. No los dice mal: emite palabras inventadas donde van los
+dígitos, con las tres transcripciones de A6 como evidencia. Es el motivo por el que
+`normalizacion` pasó a excluirse por categoría.
+
+**Por qué importa.** Para un agente conversacional que dice precios, fechas y teléfonos es un
+defecto que lo descalifica tal cual viene, y se tapa con un normalizador de texto por delante —que
+Sintética ya tiene—. Pero desde que la categoría está fuera de alcance, **el defecto no aparece en
+ninguna tabla**: un lector que mire sólo los números ve WER 0.056 y no se entera.
+
+**Qué necesita.** O la categoría vuelve a ser medible, que es A6 y es trabajo de v1, o el README
+lleva la advertencia en prosa. Hoy la lleva en prosa.
 
 ---
 

@@ -210,8 +210,9 @@ def report_model(
         print(tables.intelligibility_table(by_category, gt_rates))
         print(
             "\nEl audio real va en la MISMA tabla a proposito: un WER sin ese piso no significa "
-            "nada. `unscorable` son las filas donde el ASR escribio digitos donde la referencia "
-            "tiene palabras, asi que su alineamiento mide la convencion del ASR y no al modelo."
+            "nada. `unscorable` son las filas que el instrumento no puede puntuar: las de "
+            "`normalizacion`, que queda fuera de alcance entera, y aquellas donde el ASR escribio "
+            "digitos donde la referencia tiene palabras."
         )
         print("\n### Tasa de fallo\n")
         print(tables.failure_table(by_category, failures_metric.rates(failure_rows), gt_rates))

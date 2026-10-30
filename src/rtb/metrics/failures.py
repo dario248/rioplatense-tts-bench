@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from rtb.config import FailureThresholds, Phrase, Thresholds
 from rtb.metrics.intelligibility import Score, max_ngram_repeats, score
 from rtb.metrics.sensitivity import SensitivityPoint, knob_label
-from rtb.schema import GROUND_TRUTH_MODEL, GenerationRow, MetricRow
+from rtb.schema import GROUND_TRUTH_MODEL, GenerationRow, MetricRow, PhraseCategory
 
 METRIC_NAME = "failures"
 
@@ -21,7 +21,12 @@ METRIC_NAME = "failures"
 # publicada sin tocar `thresholds.yaml`. Paso dos veces el 2026-09-16 —la tercera condicion del
 # loop y la precedencia de `trailing_disagreement`— y las filas no lo declaraban. Se sube a mano
 # cuando `classify` cambia de conducta, y `test_intelligibility` falla si cambia sin subirla.
-TAXONOMY_VERSION = "1"
+TAXONOMY_VERSION = "2"
+
+# Categorias que el instrumento no puede puntuar, pase lo que pase en el audio. La regla de
+# conflicto de formato las aparta solo cuando el modelo verbaliza el numero; uno que nunca lo dice
+# no la dispara y sus filas entrarian al agregado contra modelos que las tienen afuera.
+OUT_OF_SCOPE = frozenset({PhraseCategory.NORMALIZACION})
 
 # Rango amplio a proposito: el valor elegido decide cuantas filas entran de cada modelo.
 SENSITIVITY_TAILS_S = (0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0)
@@ -79,6 +84,7 @@ def classify(
     shape: Mapping[str, object] | None,
     thresholds: FailureThresholds,
     last_word_end_s: float | None = None,
+    category: PhraseCategory | None = None,
 ) -> Verdict:
     """Turn one alignment plus one envelope into a verdict."""
     if scored.formatting_conflict:
@@ -146,6 +152,12 @@ def classify(
         verdict.reason = "truncation"
     elif verdict.trailing_audio:
         verdict.reason = "trailing audio"
+
+    if category in OUT_OF_SCOPE:
+        # Despues de clasificar y no antes: la fila no puntua, pero `trailing_audio_s` y el resto
+        # de la evidencia siguen sirviendo para la anatomia y para el barrido de umbrales.
+        verdict.unscorable = True
+        verdict.reason = f"{category.value} is out of scope"
     return verdict
 
 
@@ -208,6 +220,7 @@ def evaluate_row(
         shape_values,
         thresholds.failures,
         last_word_end if isinstance(last_word_end, (int, float)) else None,
+        phrase.category if phrase else None,
     )
 
     return MetricRow(
