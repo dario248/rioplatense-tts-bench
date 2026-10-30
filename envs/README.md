@@ -1,18 +1,22 @@
 # Environments
 
-Six environments, never one. The TTS models pull in mutually incompatible versions of
+Seven environments, never one. The TTS models pull in mutually incompatible versions of
 `transformers`, `torch` and `numpy`, so trying to make them share a virtualenv is a fight that
 ends with a benchmark nobody can reproduce. The boundary between stages is files on disk — wavs
 and JSONL — not imports (SPEC section 3).
 
 | Environment | File | Holds | Writes |
 |---|---|---|---|
-| generation, one **per model** | `xtts_v2.txt`, `qwen3_tts.txt`, `chatterbox_v3.txt`, `sintetica.txt` | that model's TTS stack | `audio/`, `data/manifests/*.jsonl` |
+| generation, one **per model** | `xtts_v2.txt`, `qwen3_tts.txt`, `chatterbox_v3.txt`, `sintetica.txt`, `pocket_tts_es.txt` | that model's TTS stack | `audio/`, `data/manifests/*.jsonl` |
 | ASR | `eval.txt` | faster-whisper on ctranslate2, GPU | `transcripts.jsonl`, `audio_shape.jsonl` |
 | speaker similarity | `speaker_sim.txt` | speechbrain + **CPU** torch | `speaker_sim.jsonl`, `speaker_scale.jsonl` |
 
 `sintetica.txt` is the one that cannot use 3.11: its vendored coqui fork pins `torch<2.0`, which
 publishes no 3.11 wheels, and the core needs `>=3.10`. The intersection is a single version.
+
+`pocket_tts_es.txt` is the one that needs something outside pip: its cloning weights are gated, and
+the library quietly falls back to a checkpoint that cannot clone when the download fails. The file
+says how to accept the gate, and the adapter refuses to run on the fallback.
 
 The evaluation stage started as one environment and split into two. Not for tidiness: speechbrain
 resolves cleanly against the ASR environment but brings torch with CUDA 13 wheels, and

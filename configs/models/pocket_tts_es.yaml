@@ -1,0 +1,37 @@
+# Pocket TTS (Kyutai), zero-shot, in-process. Variante `spanish`: 6 capas de transformer.
+#
+# Adapter: src/rtb/generate/pocket.py
+# Entorno: envs/pocket_tts_es.txt
+
+name: pocket_tts_es
+adapter: rtb.generate.pocket:PocketAdapter
+
+hf_repo: kyutai/pocket-tts
+# El commit lo pinea el YAML que trae el paquete, asi que subir `pocket-tts` puede cambiar los
+# pesos sin tocar este archivo. El adapter avisa cuando no coinciden.
+model_revision: 3e82814a68665eec246ff649b14c71331f955c06
+
+# El modelo lee el clip de referencia ENTERO, asi que el adapter lo recorta antes de pasarlo.
+# Cambiar este numero sin regenerar los wavs deja la similitud comparando referencias distintas.
+# Ver SPEC 6.4.
+max_ref_seconds: 6.0
+
+supports_streaming: true
+default_sample_rate: 24000
+
+# `load_model` no toma device y devuelve en CPU. Ver SPEC 6.3.
+device: cpu
+
+audio_root: audio
+manifest_path: data/manifests/pocket_tts_es.jsonl
+
+params:
+  language: spanish
+
+  temp: 0.3
+  sampler_decode_steps: 1
+  # Parte el texto en chunks de a lo sumo estos tokens. NO limita el largo de la salida.
+  max_tokens: 50
+  # int8 dinamico, solo-CPU: sobre CUDA revienta al sintetizar.
+  quantize: false
+  streaming: false

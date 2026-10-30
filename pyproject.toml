@@ -80,5 +80,6 @@ module = [
   "speechbrain.*",
   "chatterbox.*",
   "qwen_tts.*",
+  "pocket_tts.*",
 ]
 ignore_missing_imports = true

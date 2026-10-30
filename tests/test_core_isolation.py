@@ -24,6 +24,7 @@ BANNED = [
     "pandas",
     "qwen_tts",
     "chatterbox",
+    "pocket_tts",
 ]
 
 MUST_IMPORT = [
@@ -41,6 +42,7 @@ MUST_IMPORT = [
     "rtb.generate.xtts",
     "rtb.generate.qwen3",
     "rtb.generate.chatterbox",
+    "rtb.generate.pocket",
     "rtb.generate.audio_io",
     # Y la etapa 2 al reves: estas metricas corren sobre el manifest y no deben arrastrar NADA
     # pesado, ni siquiera numpy. Es lo que las hace corribles en CI.

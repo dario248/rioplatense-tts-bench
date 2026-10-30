@@ -1,0 +1,43 @@
+# Pocket TTS (Kyutai), zero-shot, in-process. Variante `spanish_24l`: 24 capas de transformer.
+#
+# Adapter: src/rtb/generate/pocket.py
+# Entorno: envs/pocket_tts_es.txt
+#
+# La GPU no es camino soportado por el modelo: se la mueve a mano, y esto no es una fila
+# publicada. Ver SPEC 6.3.
+#
+# Copia de configs/models/pocket_tts_es_24l.yaml con otro nombre y otro manifest. Si un `params`
+# diverge, las dos corridas miden modelos distintos y la comparacion miente sin avisar.
+
+name: pocket_tts_es_24l_gpu
+adapter: rtb.generate.pocket:PocketAdapter
+
+hf_repo: kyutai/pocket-tts
+# El commit lo pinea el YAML que trae el paquete, asi que subir `pocket-tts` puede cambiar los
+# pesos sin tocar este archivo. El adapter avisa cuando no coinciden.
+model_revision: 2dd944b099d06bb9edbd221fef138685711d9bf0
+
+# El modelo lee el clip de referencia ENTERO, asi que el adapter lo recorta antes de pasarlo.
+# Cambiar este numero sin regenerar los wavs deja la similitud comparando referencias distintas.
+# Ver SPEC 6.4.
+max_ref_seconds: 6.0
+
+supports_streaming: true
+default_sample_rate: 24000
+
+# `load_model` no toma device y devuelve en CPU. Ver SPEC 6.3.
+device: cuda
+
+audio_root: audio
+manifest_path: data/latency/pocket_tts_es_24l_gpu.jsonl
+
+params:
+  language: spanish_24l
+
+  temp: 0.3
+  sampler_decode_steps: 1
+  # Parte el texto en chunks de a lo sumo estos tokens. NO limita el largo de la salida.
+  max_tokens: 50
+  # int8 dinamico, solo-CPU: sobre CUDA revienta al sintetizar.
+  quantize: false
+  streaming: false

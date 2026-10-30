@@ -57,7 +57,10 @@ sección 7.4 aunque su implementación esté planificada para v1.
 
 ### v1 — ampliación
 
-- Modelos: + Voxtral TTS, Fish Audio S2, Kokoro (Kokoro sin clonado: sirve de piso de latencia).
+- Modelos: + **Pocket TTS** en sus dos variantes de español, y Kokoro sin clonado, que sirve de
+  piso de latencia. La familia que entra ahora es la de los modelos chicos que clonan y corren en
+  CPU, que en v0 no existía: los tres zero-shot medidos piden entre 4,6 y 7,1 GB de RSS y ninguno
+  llega a tiempo real en CPU.
 - Frases: hasta ~50.
 - **Métrica de acento rioplatense** (sección 7.4). Es el diferencial del proyecto.
 - Métrica semi-automática de voseo y prosodia (sección 7.6), que en v0 van a escucha humana.
@@ -128,6 +131,7 @@ rioplatense-tts-bench/
 │       ├── xtts_v2.yaml
 │       ├── qwen3_tts.yaml
 │       ├── chatterbox_v3.yaml
+│       ├── pocket_tts_es.yaml     # y la variante _24l, mas sus copias _cpu y _gpu
 │       └── sintetica.yaml
 ├── src/rtb/
 │   ├── schema.py                # modelos de datos. SIN deps pesadas.
@@ -139,11 +143,12 @@ rioplatense-tts-bench/
 │   │   ├── base.py              # TTSAdapter (ABC) + SynthesisResult
 │   │   ├── runner.py            # loop idempotente sobre el grid
 │   │   ├── seeding.py           # seed de python/numpy/torch/cuda, con imports lazy
-│   │   ├── audio_io.py          # leer/escribir wav, stdlib. Compartido por los adapters
+│   │   ├── audio_io.py          # wav y recorte de la referencia, stdlib. Compartido
 │   │   ├── dummy.py             # ruido blanco, doble de prueba del runner
 │   │   ├── xtts.py
 │   │   ├── qwen3.py
 │   │   ├── chatterbox.py
+│   │   ├── pocket.py            # Pocket TTS. Su camino soportado es CPU, ver 6.3
 │   │   └── sintetica.py         # in-process, local. Ver 6.3
 │   ├── metrics/
 │   │   ├── asr.py               # transcripcion con Whisper. El paso caro, se corre una vez
@@ -169,6 +174,7 @@ rioplatense-tts-bench/
 │   ├── xtts_v2.lock.txt         # el registro: uv pip freeze de la maquina que genero el manifest
 │   ├── qwen3_tts.txt            # qwen-tts. Python 3.12, y CUDA a elegir segun el driver
 │   ├── chatterbox_v3.txt
+│   ├── pocket_tts_es.txt        # las dos variantes de español. Pesos GATEADOS, ver ahi
 │   ├── eval.txt                 # ASR: whisper sobre ctranslate2, en GPU
 │   ├── speaker_sim.txt          # similitud: speechbrain + torch CPU. Aparte, ver seccion 3
 │   └── README.md                # cómo levantar cada entorno
@@ -514,6 +520,14 @@ Requisitos:
   (compilación de kernels, cache frío). Se generan **fuera del grid**, con un texto propio y con
   ids `<model>__warmupN`, y quedan marcadas `warmup: true`. Hacerlo así, en vez de descartar los
   timings de las 3 primeras celdas, evita que esas celdas queden sin un timing usable.
+
+  **Y resultó tener un segundo trabajo, que no era el motivo por el que se puso.** En Pocket TTS
+  la primera síntesis de un proceso no es reproducible: alguna inicialización perezosa consume
+  números del generador de torch, así que la misma seed produce audio distinto. De la segunda en
+  adelante sí lo es, y entre procesos también — tres corridas con la misma seed dan el mismo wav
+  byte a byte. Con tres síntesis de calentamiento adelante, ninguna celda del grid cae en ese
+  hueco. Medido el 2026-10-30; sin el warm-up, la grilla entera dejaría de ser reproducible y el
+  síntoma sería ninguno.
 - **Seed aplicada a todas las fuentes de aleatoriedad** (python, numpy, torch, cuda). El runner
   registra qué fuentes pudo seedear: "seedeado" con torch ausente no es el mismo experimento.
 - Escritura del manifest tras cada síntesis, con flush. No acumular en memoria.
@@ -611,6 +625,47 @@ antes de correr, porque después las tres son indistinguibles:
 Sólo el primero es una propiedad del modelo. Colapsar los tres en "no corre" le atribuye al modelo
 una limitación nuestra.
 
+#### El caso espejo: un modelo cuyo camino soportado es la CPU
+
+Pocket TTS invierte el supuesto de la sección. Su API no expone el dispositivo —`load_model` no
+toma `device` y devuelve el modelo en CPU—, la GPU se consigue moviendo el módulo a mano y sus
+autores la declaran no soportada. Las reglas que siguen valen para cualquier modelo así:
+
+- **La grilla de calidad corre en el dispositivo soportado**, que acá es la CPU. No es una
+  preferencia: el muestreo autorregresivo toma números al azar de un generador distinto en cada
+  dispositivo, así que la misma seed produce otra realización en GPU. Medir la calidad en un
+  camino que el modelo no soporta sería publicar audio que su propio autor no respalda.
+- **La columna de RTF en GPU queda sin número, con veredicto `gpu_no_soportado`.** Es el espejo
+  exacto de `no_cpu_upstream`: habla del modelo y no de nuestra máquina.
+- **La columna compartida sigue siendo la de CPU**, con el mismo subset de 8 frases × 2 hablantes
+  × 3 seeds a 1 y a 4 hilos que ya tienen los otros cuatro, en la misma máquina. Ahí la
+  comparación entre modelos no cambia de protocolo.
+- **La grilla entera en CPU da además un RTF sobre 540 celdas** donde los otros tienen 48. No se
+  publica en la columna compartida —el denominador tiene que ser el mismo— pero sirve para
+  chequear contra la realidad la banda que el diseño del subset deriva.
+
+La aceleración que un modelo así consiga en GPU **es propiedad de la máquina y no del modelo**, que
+es el espejo de lo medido sobre los hilos. Se mide aparte, sobre el subset de costo y con configs
+`*_gpu.yaml`, y se publica como verificación y no como fila.
+
+#### Un modelo que fija sus propios hilos
+
+El barrido de 1 y 4 hilos se hace con `OMP_NUM_THREADS` al invocar, y eso supone que el modelo
+acepta lo que el entorno le pida. **Pocket TTS no**: su módulo llama a `torch.set_num_threads(1)`
+al importarse, incondicionalmente, así que pisa la variable y las dos puntas del barrido miden la
+misma configuración.
+
+La regla, que vale para cualquier modelo que haga lo mismo:
+
+- **La fila publicada es el modelo como lo entregan**, o sea un hilo. Su celda de 4 hilos no lleva
+  el mismo número repetido: lleva declarado que el modelo se fija en uno.
+- **Cuánto comprarían los hilos se mide igual, forzándolos después del import**, con un config
+  propio y la diferencia declarada. Es una intervención sobre algo que el autor apagó a propósito,
+  así que se publica como oración y no como fila.
+- **El `_resources.json` es el que lo delata**, porque guarda lo pedido por entorno al lado de lo
+  que torch terminó usando. Sin ese par, la columna habría dicho "4 hilos" sobre una corrida de
+  uno y nada habría fallado.
+
 ---
 
 ### 6.4 Asimetría de protocolo: la transcripción de referencia
@@ -663,6 +718,20 @@ Resultado: **XTTS-v2 y Chatterbox v3 reciben 6.0 s exactos, Qwen3-TTS recibe 6.5
 contra uno, que es una comparación mucho más fácil de leer que tres conductas distintas — y hace
 parcialmente contestable la pregunta A4 de `ANALYSIS.md` sin correr nada extra: si dos modelos que
 reciben la misma referencia difieren mucho en similitud, el largo de la referencia explica poco.
+
+**El cuarto caso: un modelo que termina el prompt en pausa.** Pocket TTS clona sólo desde audio y
+sin transcripción, como XTTS-v2 y Chatterbox, pero lee el clip entero —su único recorte propio es
+a 30 s y viene apagado—, así que el adapter lo recorta a `max_ref_seconds` antes de pasarlo y
+`ref_seconds_used` vuelve a ser 6,0 s parejos. Encima de eso el modelo hace algo que los otros no:
+corta el silencio final del prompt, aplica un fade de 20 ms y agrega 80 ms de silencio, para que
+la referencia termine entre palabras y no sobre una sílaba.
+
+Eso es conducta del modelo y **no se desactiva**, así que lo que encodea no son exactamente los
+6,0 s entregados. La diferencia está acotada por el silencio final que encuentre —como mucho los
+250 ms de separación entre utterances concatenadas— y se resuelve declarándola: `ref_seconds_used`
+sigue informando los segundos entregados, que es lo que esa columna significa para los otros
+modelos, y el largo realmente encodeado queda en el log de cada clip. Inventar una columna nueva
+para 0,25 s haría la tabla menos comparable, no más.
 
 `requires_ref_text` en el config del modelo es lo que hace que esto falle temprano:
 `load_bench_config` verifica que todos los `ref_clips` que la grilla va a usar tengan

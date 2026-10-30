@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import logging
 import time
-import wave
 from pathlib import Path
 from typing import Any
 
 from rtb.config import ModelConfig
-from rtb.generate.audio_io import as_float_list, read_duration, write_wav
+from rtb.generate.audio_io import ReferenceTrimmer, as_float_list, write_wav
 from rtb.generate.base import SynthesisResult, TTSAdapter
 from rtb.logconf import event
 
@@ -74,7 +73,9 @@ class ChatterboxAdapter(TTSAdapter):
 
         self._model: Any = None
         self._conditioned: tuple[str, float] | None = None
-        self._trimmed: dict[tuple[str, float], tuple[Path, float]] = {}
+        self._trimmer = ReferenceTrimmer(
+            config.audio_root / self.name / self.trimmed_ref_dir, self.max_ref_seconds
+        )
         self._resolved_revision: str | None = config.model_revision
         self._lib_version: str | None = None
         self._torch_version: str | None = None
@@ -143,7 +144,7 @@ class ChatterboxAdapter(TTSAdapter):
     def unload(self) -> None:
         self._model = None
         self._conditioned = None
-        self._trimmed.clear()
+        self._trimmer.clear()
         self._loaded = False
 
     # ── la referencia recortada ──────────────────────────────────────────────────────────────
@@ -151,59 +152,13 @@ class ChatterboxAdapter(TTSAdapter):
     def trimmed_reference(self, ref_wav: Path) -> tuple[Path, float]:
         """A copy of the reference cut to `max_ref_seconds`, written once and cached.
 
-        Trimmed here because the model trims inconsistently across its three paths (SPEC 6.4). Cut
-        from the START, whole samples, no resampling and no level change.
+        Trimmed because the model reads the reference at three different lengths in one call and
+        the widest one has no cut at all (SPEC 6.4).
         """
-        key = (str(ref_wav), float(self.max_ref_seconds))
-        cached = self._trimmed.get(key)
-        if cached is not None:
-            return cached
-
-        full_seconds = read_duration(ref_wav)
-        if full_seconds <= self.max_ref_seconds:
-            # Ya entra en el presupuesto: se pasa tal cual, sin escribir una copia identica.
-            result = (ref_wav, full_seconds)
-            self._trimmed[key] = result
-            return result
-
-        with wave.open(str(ref_wav), "rb") as source:
-            channels, width, rate = (
-                source.getnchannels(),
-                source.getsampwidth(),
-                source.getframerate(),
-            )
-            keep = min(source.getnframes(), int(self.max_ref_seconds * rate))
-            frames = source.readframes(keep)
-
-        target = self._trimmed_path(ref_wav)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with wave.open(str(target), "wb") as sink:
-            sink.setnchannels(channels)
-            sink.setsampwidth(width)
-            sink.setframerate(rate)
-            sink.writeframes(frames)
-
-        seconds = keep / float(rate)
-        logger.info(
-            "reference trimmed",
-            extra={
-                "fields": {
-                    "source": str(ref_wav),
-                    "trimmed": str(target),
-                    "from_seconds": round(full_seconds, 3),
-                    "to_seconds": round(seconds, 3),
-                }
-            },
-        )
-        result = (target, seconds)
-        self._trimmed[key] = result
-        return result
+        return self._trimmer.trimmed(ref_wav)
 
     def _trimmed_path(self, ref_wav: Path) -> Path:
-        """Where the trimmed copy goes. Named after the budget, so two budgets never collide."""
-        root = self.config.audio_root / self.name / self.trimmed_ref_dir
-        budget = f"{self.max_ref_seconds:g}".replace(".", "_")
-        return root / f"{ref_wav.parent.name}__{ref_wav.stem}__{budget}s.wav"
+        return self._trimmer.path_for(ref_wav)
 
     def _condition(self, ref_wav: Path) -> None:
         """Cloning conditionals for one reference: computed once, cached, and outside the clock.

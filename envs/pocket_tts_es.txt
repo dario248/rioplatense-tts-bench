@@ -1,0 +1,29 @@
+# Entorno de generacion de Pocket TTS (Kyutai). Las dos variantes de español, `spanish` y
+# `spanish_24l`, comparten paquete: cual corre lo elige el config del modelo.
+# Sucio y desechable: no comparte nada con los de metricas ni con los otros modelos.
+#
+#   uv venv --python 3.11 .venv-pocket
+#   uv pip install --python .venv-pocket -r envs/pocket_tts_es.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cu126 --index-strategy unsafe-best-match
+#   uv pip install --python .venv-pocket -e .            # el core: pydantic + pyyaml
+#
+#   .venv-pocket/bin/python -m rtb.generate --config configs/models/pocket_tts_es.yaml --dry-run
+#
+# Verificado el 2026-10-30 en RTX 4050 Laptop (6141 MiB, driver 550.163.01 = CUDA 12.4):
+#   pocket-tts 4.0.1 | torch 2.6.0+cu126 | numpy 2.4.6 | safetensors 0.8.0 | tokenizers 0.23.3
+#   python 3.11 | pesos languages/spanish@3e82814a y languages/spanish_24l@2dd944b0
+
+# ── ANTES DE CORRER: aceptar el gate ───────────────────────────────────────────────────────────
+# Los pesos CON clonado estan gateados. Hay que aceptar las condiciones en
+# https://huggingface.co/kyutai/pocket-tts y estar logueado localmente (`uvx hf auth login`).
+#
+# Sin eso la libreria NO falla: cae a unos pesos que no clonan y sigue. El adapter lo detecta y
+# aborta al cargar, pero si alguna vez se saca ese chequeo, el sintoma es una similitud baja que
+# se lee como un modelo malo.
+pocket-tts==4.0.1
+
+# PIN OBLIGATORIO por el driver de esta maquina. `pocket-tts` declara `torch>=2.5.0` sin tope, asi
+# que la resolucion trae el wheel mas nuevo del indice; si su CUDA es mas nueva que el driver,
+# `torch.cuda.is_available()` queda en False con un UserWarning y la corrida de GPU mide CPU.
+# 2.6.0+cu126 es el mismo que usa envs/chatterbox_v3.txt.
+torch==2.6.0
