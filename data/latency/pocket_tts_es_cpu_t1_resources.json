@@ -1,0 +1,11 @@
+{
+  "device": "cpu",
+  "generated": 48,
+  "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+  "omp_num_threads": null,
+  "peak_rss_mib": 1507.0,
+  "peak_vram_allocated_mib": 0.0,
+  "peak_vram_reserved_mib": 0.0,
+  "threads": 1,
+  "warmup": 3
+}

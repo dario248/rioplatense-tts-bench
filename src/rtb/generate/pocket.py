@@ -245,8 +245,8 @@ class PocketAdapter(TTSAdapter):
         is what the same column means for the other models.
         """
         try:
+            from pocket_tts.data.audio import audio_read  # noqa: PLC0415
             from pocket_tts.data.audio_utils import (  # noqa: PLC0415
-                audio_read,
                 convert_audio,
                 end_on_pause,
             )
