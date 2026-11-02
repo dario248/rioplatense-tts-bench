@@ -12,19 +12,21 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-10-30):** Pocket TTS entero, y mueve números de v0. Es el primero cuyo
-  dispositivo soportado es la CPU, y el primero que no verbaliza números: eso obligó a excluir
-  `normalizacion` por categoría y no por detección, con lo que los seis modelos pasan a publicar
-  sobre las mismas 480 filas y el WER de Chatterbox y de Sintética baja. → A6 · A16 · SPEC 6.3.
-- **Próximo paso: medir la precisión de los timestamps de palabra.** Es lo que decide el tamaño de
-  7.4, el diferencial de v1: el SPEC pide el 40–60 % central del onset y lo que hay son timestamps
-  de palabra de faster-whisper. Si no alcanzan, hace falta alineamiento forzado. En paralelo van
-  A18 y A19, que son minutos cada uno. → SPEC 7.4 · A18 · A19.
-- **Bloqueado para publicar:** nada.
+- **Último hito (2026-11-02):** la escucha de los 30 clips de `normalizacion` confirmó que la
+  exclusión tapa fallas reales —24 de 30 celdas son del modelo— y descubrió que el instrumento se
+  equivoca en las dos direcciones dentro de la misma fila: Whisper repara un dígito que el modelo
+  se comió e inventa un error que no cometió. → A6.
+- **Próximo paso: transcribir a mano los 20 clips de `normalizacion` de Sintética** (A6, piloto de
+  la transcripción humana), con el criterio de seguir o parar fijado antes de empezar. Después
+  sigue medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
+  diferencial de v1— y en paralelo van A18 y A19, que son minutos cada uno.
+  → A6 · SPEC 7.4 · A18 · A19.
+- **Bloqueado para publicar:** **dos tasas de v0 están subestimadas** —XTTS y Chatterbox— y por
+  cuánto no se sabe hasta tener los transcripts corregidos. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★ A6 · A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 · A11 **diferida**. Ninguno frena
-  v1. → §entradas.
+- **Abiertos:** ★★★ A6 · ★★ A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 · A11 **diferida**. Sólo A6
+  puede mover un número publicado. → §entradas.
 - **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
   similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
   escrito.
@@ -296,6 +298,22 @@ Dos de cada tres desacuerdos de frontera son del instrumento, que es la proporci
 el veredicto exista — pero un tercio no lo son, que es la que justifica que mande a escuchar en vez
 de absolver.
 
+**Nueve filas se colaron después, y nunca fueron desacuerdos de frontera (2026-11-02).** La lista
+llegó a 27 cuando `nor_005` sumó las nueve de Sintética. La regla veía una inserción y una
+sustitución porque el config declaraba tres lecturas del teléfono y las tres arrancan con "once",
+mientras el modelo lo lee entero dígito por dígito. Agregada la cuarta lectura, las nueve pierden
+la marca y la tanda vuelve exactamente a las 18 de arriba, con los mismos 15/2/1. Sus etiquetas
+salen del archivo junto con las filas; lo que encontraron —el dígito que se come `m_02`— quedó
+escrito en A6.
+
+La lección de método: una tanda de escucha puede contaminarse por un hueco del config mucho
+después de darla por cerrada, así que sus cuentas se recalculan desde la métrica y no se leen de
+cuando se escribieron.
+
+**Y la tanda dejó de estar completa: Pocket sumó seis filas sin escuchar.** Cinco son `lex_002`
+—"bondi" → "buen día"—, que es el mismo mecanismo ya escuchado arriba con los otros modelos, y la
+sexta es `pro_003` de la variante de 24 capas. La lista queda en 24 filas con 18 veredictos.
+
 Se eligió el error barato, y la asimetría es la que justificó el veredicto desde el principio:
 `boundary_disagreement` **manda a escuchar, no absuelve**. Una fila de más en la lista cuesta un
 clip; diez de menos cuestan publicar como alucinación a modelos que dijeron la palabra bien.
@@ -546,21 +564,22 @@ la pregunta del benchmark, y restarlo sería inventar un número.
 
 ---
 
-## A6 ★★ — `normalizacion` es inmedible con este instrumento
+## A6 ★★★ — La exclusión de `normalizacion` tapa fallas reales del modelo
 
 **Pregunta.** ¿Cómo se mide la verbalización de números, fechas, montos y siglas si Whisper las
 vuelve a escribir en dígitos?
 
-**Los datos.** XTTS 60/60 filas no puntuables. Qwen 58/60. El pase detecta el conflicto de formato
-y las aparta en vez de contarlas como fallas, y por eso la categoría se movió a revisión manual en
-SPEC 7.6, con la evidencia. Se probó `initial_prompt` de Whisper y se rechazó: arregla los números
-planos, deja las fechas en dígitos y degrada otro contenido ("AFIP" → "Zafip").
+**Dónde quedó.** La categoría está fuera del agregado desde el 2026-10-30. La escucha del
+2026-11-02 mostró dos cosas: adentro hay fallas reales del modelo —24 de 30 celdas— y el
+instrumento se equivoca en las dos direcciones, así que ninguna regla sobre el transcript la va a
+recuperar. Lo decidido es transcribir los clips a oído, con un piloto de 20.
 
-**Decidido el 2026-10-30: la categoría se excluye entera, por categoría y no por detección.** Lo
+**Decidido el 2026-10-30: se excluye la categoría entera, y no las filas que la regla detecta.** Lo
 forzó Pocket TTS, que no verbaliza números: emite palabras inventadas donde van los dígitos, así
 que ningún lado de la comparación los tiene y la regla de conflicto de formato no se dispara. Sus
 60 filas puntuaban —0/60 no puntuables contra 60/60 de XTTS— y el agregado comparaba 540 filas
-contra 480.
+contra 480. Antes se había probado el `initial_prompt` de Whisper y se rechazó: arregla los números
+planos, deja las fechas en dígitos y degrada otro contenido ("AFIP" → "Zafip").
 
 | frase | lo que transcribe el ASR sobre el audio de Pocket |
 |---|---|
@@ -571,16 +590,97 @@ contra 480.
 `OUT_OF_SCOPE` en `rtb.metrics.failures` lo implementa y `TAXONOMY_VERSION` sube a 2. **Los seis
 modelos publican sobre las mismas 480 filas.** Lo que movió está en A16.
 
-**Lo que la exclusión se lleva puesto, y hay que decirlo:** que un modelo no tenga front-end de
-números deja de ser visible en ningún agregado. Es un defecto grave para producción y ahora vive
-sólo en prosa, en el README y acá. Mientras la categoría no sea medible, no hay mejor lugar.
+**Por qué importa, y qué se lleva puesto la exclusión.** Son 60 filas por modelo, un octavo del
+grid, sin ningún número publicable, y es de lo más útil de saber para elegir un TTS en producción:
+un agente que lee precios y dice la moneda equivocada está roto. Que un modelo no tenga front-end
+de números deja de ser visible en ningún agregado y hoy vive sólo en prosa, acá y en el README. Y
+si esas filas traen fallas reales, las tasas publicadas de XTTS y de Chatterbox están subestimadas.
 
-**Por qué importa.** Son 60 filas por modelo, un octavo del grid, sin ningún número publicable. Y la
-normalización de texto es de lo más útil de saber para elegir un TTS en producción.
+**Hecho el 2026-11-02: la escucha.** Treinta clips, uno por (modelo, frase) y elegido por
+transcript modal y no por sospecha —quedarse con los que pintan mal confirmaría la hipótesis por
+construcción—. Sale de `rtb.metrics.listening --verdict unscorable --one-per-cell` y vive en
+`data/listening/unscorable.tsv`. **Resultado: 24 `dijo_mal` contra 6 `dijo_bien`**, y los seis son
+Sintética en las cinco frases más Qwen en `nor_002`.
 
-**Ideas.** Escucha manual con planilla de formas aceptadas; o un segundo ASR con vocabulario
-forzado; o comparar contra las `accepted_alternatives` a nivel fonético en vez de ortográfico. Las
-tres son trabajo de v1.
+O sea que la premisa de esta entrada era demasiado fuerte. «Whisper devuelve los números a dígitos»
+vale para el dígito y no para el resto de la frase: todo lo demás vuelve en palabras y fiel —"25
+**de mayo de** 2026", "kilómetros **por hora**", "info **arroba** ejemplo **punto** com"—, y ahí
+adentro hay fallas del modelo que la exclusión se traga.
+
+| modelo | frase | lo que transcribe Whisper | qué es |
+|---|---|---|---|
+| XTTS-v2 | `$15.750` | "15.750 **dólares**" (9 de 12) | dice dólares donde van pesos |
+| XTTS-v2 | `120 km/h` | "120 kilómetros **hacha**" (5 de 12) | lee la *h* como letra |
+| Chatterbox | `25/05/2026` | "25.05.**2016**" | año equivocado |
+| Chatterbox | `3,5%` | "del **13 a los 500**" | irreconocible |
+| Chatterbox | `120` | "**159**", "100 centos milímetros" | 12 transcripts distintos de 12 |
+| Qwen3-TTS | `11 4567-8900` | "1145-**670-100**" | pierde dígitos |
+
+**Y la escucha trajo lo que no esperábamos: el instrumento se equivoca en las dos direcciones.**
+Las cuatro voces de Sintética en `nor_005` dan tres causas distintas para doce filas que el
+agregado contaba como una sola cosa:
+
+| hablante | qué pasa | de quién es el error |
+|---|---|---|
+| `f_01`, `m_01` | dice la frase entera | — |
+| `f_02` | dice la frase entera; Whisper transcribe sólo el teléfono | del ASR |
+| `m_02` | dice `uno cuatro cinco…`, con un solo "uno" | del modelo |
+
+En `m_02` las dos direcciones conviven en un clip: Whisper escribe `1-1-4-5-6-7-8-9-0-0` —el
+teléfono correcto, que el modelo no dijo— y de paso inventa `escribia` donde va `o escribi a`. El
+instrumento mide cero errores en el número y un WER de 0.136 por una falla que el modelo no
+cometió. Un teléfono equivocado, de las peores fallas posibles para un agente de voz, sale como
+correcto. Es el límite que esta entrada ya predecía —«Whisper puede devolver la cadena de dígitos
+plausible y la fila va a puntuar bien»— medido por primera vez, y peor de lo previsto.
+
+`f_02` quedó confirmado a oído y por anatomía: 5.16 s de habla contra los 5.66 s de `f_01` diciendo
+la frase completa, y menos de tres segundos para las once palabras que Whisper transcribió.
+
+**Una alternativa faltaba en el config.** `nor_005` declaraba tres lecturas del teléfono y las tres
+arrancan con "once"; Sintética lo lee entero dígito por dígito, que es igual de válido. Con la
+cuarta agregada, seis filas pasan de WER 0.095 a 0.000 y nueve pierden una marca de
+`boundary_disagreement` que nunca les correspondió. Nada publicado se mueve. Está en A1.
+
+**El expansor de dígitos queda sin efecto.** El plan era extender `expand_small_cardinals` a miles,
+decimales, fechas y unidades para que el dígito puntuara sin cambiar de instrumento. No alcanza,
+porque ningún expansor recupera un dígito que el transcript no tiene: Whisper escribe el número que
+espera, y eso ocurre antes de que haya nada que comparar. Y la transcripción humana además lo
+vuelve innecesario, porque deja los dos lados de la comparación en palabras.
+
+**Decidido el 2026-11-02: transcripción humana para la categoría.** Escuchar cada clip, corregir el
+transcript del ASR y calcular las métricas de `normalizacion` contra lo que el modelo efectivamente
+dijo. El conjunto corregido queda además como referencia del instrumento: permite medir el WER de
+Whisper sobre habla sintética rioplatense y comparar otro ASR sin regenerar una sola síntesis.
+
+- **Corregir un borrador, no transcribir de cero.** Whisper acierta casi toda la prosa.
+- **Tapar la `expected_verbalization` mientras se transcribe.** Al revés que en la escucha: a la
+  vista, se escribe lo que el modelo debería haber dicho y el conjunto queda arruinado sin que se
+  note después.
+- **Marcar la fila.** Una métrica calculada sobre transcripción humana y una sobre ASR no se pueden
+  mezclar en silencio.
+
+**El tamaño, medido.** Las semillas no sirven para muestrear, salvo en un caso:
+
+| modelo | celdas con las 3 semillas de audio byte-idéntico | clips a transcribir |
+|---|---|---|
+| `sintetica` | 20/20 | **20**, que cubren sus 60 filas |
+| los otros cinco | 0/20 cada uno | 60 cada uno |
+
+**El piloto, con el criterio fijado antes de transcribir.** Van primero los 20 de Sintética. Seguir
+con los 300 restantes si pasa cualquiera de las dos: tres o más celdas de veinte donde el error que
+reporta el instrumento no es el que cometió el modelo, o un movimiento de más de dos puntos en el
+WER de la categoría. Medir también en qué dirección falla —errores inventados contra reparados— y
+cuánto lleva un clip de verdad, que es lo que recalibra las 300 restantes.
+
+**Dos cosas sobre el piloto.** No contesta si generaliza: Sintética es el mejor de los seis acá y
+es donde corregir rinde más, porque Whisper sólo puede reparar un número que está casi bien, así
+que antes de comprometer los 300 va una sonda de diez clips de Pocket. Y deja algo aunque la
+respuesta sea que no: comparar los 20 corregidos contra Whisper es el WER del instrumento sobre el
+habla que mide, que el benchmark hoy no tiene por ningún lado.
+
+**Costo.** Media hora de herramienta, veinte minutos los 20 de Sintética, y entre tres y cuatro
+horas los 300 restantes si cada clip lleva cuarenta segundos. Eso último compite con la métrica de
+acento de SPEC 7.4, que es el bloqueante real de v1.
 
 ---
 
