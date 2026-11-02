@@ -144,6 +144,42 @@ def test_every_vocabulary_names_a_field_the_taxonomy_writes() -> None:
     assert set(VERDICTS) <= set(vars(failures.Verdict()))
 
 
+# ── el muestreo de una fila por celda ────────────────────────────────────────────────────────────
+
+
+def test_one_row_per_model_and_phrase() -> None:
+    rows = [
+        row(f"m{m}__s__p{p}__s{seed}__ref0", model=f"m{m}", phrase_id=f"p{p}")
+        for m in (1, 2)
+        for p in (1, 2)
+        for seed in (1, 2, 3)
+    ]
+    chosen = listening.representative(rows)
+    assert len(chosen) == 4
+    assert {(r.model, r.phrase_id) for r in chosen} == {
+        ("m1", "p1"),
+        ("m1", "p2"),
+        ("m2", "p1"),
+        ("m2", "p2"),
+    }
+
+
+def test_the_chosen_row_is_the_modal_transcript() -> None:
+    # Quedarse con la que pinta peor confirmaria la hipotesis por construccion: va la tipica.
+    rows = [
+        row("a", transcript="lo que suele decir"),
+        row("b", transcript="lo que suele decir"),
+        row("c", transcript="un caso raro"),
+    ]
+    assert listening.representative(rows)[0].transcript == "lo que suele decir"
+
+
+def test_a_tie_is_broken_by_generation_id_and_not_by_order() -> None:
+    forward = listening.representative([row("z", transcript="una"), row("a", transcript="otra")])
+    backward = listening.representative([row("a", transcript="otra"), row("z", transcript="una")])
+    assert forward[0].generation_id == backward[0].generation_id == "a"
+
+
 # ── el nivel de la cola ──────────────────────────────────────────────────────────────────────────
 
 

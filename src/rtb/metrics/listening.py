@@ -1,4 +1,4 @@
-"""Listening worklists: the rows the instrument cannot decide on its own (ANALYSIS A13).
+"""Listening worklists: the rows the instrument cannot decide on its own.
 
     python -m rtb.metrics.listening --verdict trailing_audio
 
@@ -37,8 +37,7 @@ logger = logging.getLogger("rtb.metrics.listening")
 DEFAULT_OUT_DIR = Path("data/listening")
 VERDICT_COLUMN = "veredicto"
 
-# Vocabulario cerrado, uno por veredicto. Sin esto, la mitad de las filas dice "ruido" y la otra
-# "noise, poco" y no se puede contar nada.
+# Vocabulario cerrado, uno por veredicto: una etiqueta fuera de la lista no se puede contar.
 VERDICTS = {
     "trailing_audio": {
         "habla": "la cola tiene palabras que el modelo invento",
@@ -47,22 +46,29 @@ VERDICTS = {
         "nada": "no se escucha nada: la marca es un falso positivo",
         "corte": "la cola es la frase cortandose, no material extra",
     },
-    # Faltan palabras al final y hay sonido ahi. La pregunta es quien se comio el final, y la
-    # regla no puede contestarla: el ASR que no lo oyo y el modelo que lo dijo mal se ven igual
-    # desde el texto (ANALYSIS A2).
+    # Quien se comio el final: desde el texto, el ASR que no lo oyo y el modelo que lo dijo mal
+    # se ven igual.
     "trailing_disagreement": {
         "dijo_bien": "el modelo dijo el final entero; el ASR no lo transcribio",
         "dijo_mal": "el modelo pronuncio mal el final, y el ASR transcribio lo que pudo",
         "no_lo_dijo": "el modelo se corto: el truncamiento es real",
         "nada": "no se oye nada despues de la ultima palabra: la marca es un falso positivo",
     },
-    # La pregunta acá es de quien es la particion, y la regla no puede contestarla: el mismo
-    # patron lo produce un rehilamiento fuerte y una aproximante (ANALYSIS A1).
+    # De quien es la particion de palabra: el mismo patron lo produce un rehilamiento fuerte y
+    # una aproximante.
     "boundary_disagreement": {
         "dijo_bien": "el modelo dijo la palabra entera; el ASR la partio",
         "dijo_mal": "el modelo pronuncio algo distinto, y la particion refleja el audio",
         "dialectal": "lo que cambia es la realizacion rioplatense: rehilamiento o su ausencia",
         "nada": "no se oye diferencia: la marca es un falso positivo",
+    },
+    # Si el numero mal escrito es del ASR o del modelo. Decide `verbalizacion`, no `transcript`:
+    # el transcript es lo que esta en duda.
+    "unscorable": {
+        "dijo_bien": "verbalizo una forma valida; lo unico distinto es como lo escribio el ASR",
+        "dijo_mal": "dijo otra cosa: cifra equivocada, o sonidos que no son palabras",
+        "no_lo_dijo": "se comio el numero o parte de la frase",
+        "ininteligible": "no se entiende que dijo",
     },
 }
 
@@ -80,6 +86,8 @@ COLUMNS = (
     "total_s",
     "wer",
     "frase",
+    "verbalizacion",
+    "alternativas",
     "transcript",
     VERDICT_COLUMN,
 )
@@ -110,6 +118,8 @@ class TailRow:
     wer: float | None
     phrase: str
     transcript: str
+    verbalization: str = ""
+    alternatives: str = ""
     verdict: str = ""
 
     def cells(self) -> list[str]:
@@ -130,6 +140,8 @@ class TailRow:
             num(self.total_s),
             num(self.wer, 3),
             flatten(self.phrase),
+            flatten(self.verbalization),
+            flatten(self.alternatives),
             flatten(self.transcript),
             self.verdict,
         ]
@@ -179,11 +191,12 @@ def read_verdicts(path: Path) -> dict[str, str]:
 def build(
     manifests: Sequence[Path],
     metrics_dir: Path,
-    phrases_by_id: dict[str, tuple[str, str]],
+    phrases_by_id: dict[str, tuple[str, str, str, str]],
     frame_ms: int,
     verdict_field: str,
     existing: dict[str, str],
     root: Path,
+    one_per_cell: bool = False,
 ) -> Worklist:
     """Every row flagged with `verdict_field`, with its tail measured."""
     transcripts = {
@@ -224,12 +237,11 @@ def build(
             continue
         peak = max(rms, default=0.0)
         tail = rms[int(last_word / frame_s) :] if frame_s else []
-        # El pico de la cola y no su mediana: lo que decide si se escucha algo es el momento mas
-        # fuerte, no el promedio de una cola que puede ser casi toda silencio.
+        # El pico y no la mediana: una cola casi toda silencio promedia a inaudible.
         level = db_relative(max(tail, default=0.0), peak)
 
-        phrase_text, category = phrases_by_id.get(
-            generation.phrase_id or "", (generation.reference_text or "", "?")
+        phrase_text, category, verbalization, alternatives = phrases_by_id.get(
+            generation.phrase_id or "", (generation.reference_text or "", "?", "", "")
         )
         verdict = existing.get(generation_id, "")
         if verdict:
@@ -249,14 +261,40 @@ def build(
                 total_s=anatomy.total_s,
                 wer=verdict_row.values.get("wer"),
                 phrase=phrase_text,
+                verbalization=verbalization,
+                alternatives=alternatives,
                 transcript=(transcript.values.get("text", "") if transcript else ""),
                 verdict=verdict,
             )
         )
 
+    if one_per_cell:
+        # Ordenadas por frase y no de peor a mejor: la misma frase en los seis modelos, seguidas.
+        worklist.rows = representative(worklist.rows)
+        worklist.rows.sort(key=lambda row: (row.phrase_id, row.model, row.generation_id))
+        worklist.carried = sum(1 for row in worklist.rows if row.verdict)
+        return worklist
+
     # Peor primero: si la escucha se corta a la mitad, lo escuchado es lo que mas informa.
     worklist.rows.sort(key=lambda row: (-row.tail_s, row.generation_id))
     return worklist
+
+
+def representative(rows: list[TailRow]) -> list[TailRow]:
+    """One row per (model, phrase): the modal transcript, tie-broken by `generation_id`."""
+    cells: dict[tuple[str, str], list[TailRow]] = {}
+    for row in rows:
+        cells.setdefault((row.model, row.phrase_id), []).append(row)
+
+    chosen = []
+    for group in cells.values():
+        counts: dict[str, int] = {}
+        for row in group:
+            counts[flatten(row.transcript)] = counts.get(flatten(row.transcript), 0) + 1
+        chosen.append(
+            min(group, key=lambda row: (-counts[flatten(row.transcript)], row.generation_id))
+        )
+    return chosen
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -275,6 +313,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default="trailing_audio",
         help="which failure field to build the worklist from",
     )
+    parser.add_argument(
+        "--one-per-cell",
+        action="store_true",
+        help="keep one clip per (model, phrase) instead of every seed and speaker",
+    )
     parser.add_argument("--log-level", default="INFO")
     parser.add_argument("--plain-logs", action="store_true")
     return parser
@@ -291,7 +334,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         thresholds = load_thresholds(resolve(args.thresholds))
         phrases_by_id = {
-            phrase.id: (phrase.text, phrase.category.value)
+            phrase.id: (
+                phrase.text,
+                phrase.category.value,
+                phrase.expected_verbalization or "",
+                # Varias formas pueden ser correctas: sin esto se juzga mas estricto que la regla.
+                " | ".join(phrase.accepted_alternatives),
+            )
             for phrase in load_phrases(resolve(args.phrases))
         }
     except ConfigError as err:
@@ -308,6 +357,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.verdict,
         existing,
         root,
+        args.one_per_cell,
     )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
