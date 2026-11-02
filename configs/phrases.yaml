@@ -441,6 +441,7 @@
   accepted_alternatives:
     - "llama al once cuatro cinco seis siete ocho nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
     - "llama al once cuatro mil quinientos sesenta y siete ochenta y nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+    - "llama al uno uno cuatro cinco seis siete ocho nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
   failure_hypothesis: >
     Agrupación de dígitos telefónicos (hay varias convenciones válidas, de ahí las
     alternativas) y lectura de email con arroba y dominio compuesto.
