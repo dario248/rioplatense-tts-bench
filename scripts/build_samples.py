@@ -13,7 +13,7 @@ regenerate it from the manifest and check that this is the clip the number came 
 The table in `data/samples/README.md` is written from `data/metrics/`, never typed by hand: a
 curated clip whose number drifts would otherwise keep claiming the old one.
 
-No importa `rtb`: tiene que correr en cualquier entorno.
+It imports no `rtb`: it has to run in any environment.
 """
 
 from __future__ import annotations

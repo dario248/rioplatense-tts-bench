@@ -6,13 +6,14 @@
 
     uv run scripts/stage_listening_clips.py --verdict trailing_audio
 
-Sin esto la escucha obliga a saltar entre una carpeta por modelo y por hablante, y el orden de
-peor a mejor del TSV —que es lo que hace que una escucha a medias igual sirva— se pierde.
+The clips live one folder per model and per speaker. The number prefix is the point: any player
+that sorts by name plays the round in the row order of the TSV, which is what makes a listening
+cut in half still worth something. The destination lives under `audio/`, which is not committed.
 
-El prefijo numerico es el punto: cualquier reproductor que ordene por nombre reproduce la tanda
-en el mismo orden que las filas. El destino va bajo `audio/`, que no se commitea: son copias.
+It works on any TSV with `generation_id` and `wav` columns — `--listening`, `--dest` and
+`--column` point it at another round, such as the transcription one in `data/corrections/`.
 
-No importa `rtb` ni depende de nada: tiene que correr en cualquier entorno.
+It imports no `rtb` and depends on nothing: it has to run in any environment.
 """
 
 from __future__ import annotations
@@ -36,14 +37,19 @@ def read_rows(path: Path) -> tuple[list[str], list[list[str]]]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="stage_listening_clips.py", description=__doc__)
-    parser.add_argument("--verdict", default="trailing_audio", help="qué TSV de data/listening")
+    parser.add_argument("--verdict", default="trailing_audio", help="name of the TSV, without .tsv")
+    parser.add_argument(
+        "--column",
+        default=VERDICT_COLUMN,
+        help="the column that marks a row as done, for --pending-only",
+    )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--listening", type=Path, default=DEFAULT_LISTENING)
     parser.add_argument("--dest", type=Path, default=DEFAULT_DEST)
     parser.add_argument(
         "--pending-only",
         action="store_true",
-        help="sólo las filas sin veredicto escrito",
+        help="only the rows with nothing written in --column yet",
     )
     args = parser.parse_args(argv)
 
@@ -57,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         id_at, wav_at = header.index("generation_id"), header.index("wav")
     except ValueError:
         raise SystemExit(f"{tsv} no tiene columnas generation_id/wav") from None
-    verdict_at = header.index(VERDICT_COLUMN) if VERDICT_COLUMN in header else None
+    verdict_at = header.index(args.column) if args.column in header else None
 
     dest = root / args.dest / args.verdict
     # Se rehace entero: si el TSV se regeneró, un sobrante de la tanda anterior se reproduce en
