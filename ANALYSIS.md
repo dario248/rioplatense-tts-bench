@@ -329,6 +329,12 @@ clip; diez de menos cuestan publicar como alucinación a modelos que dijeron la 
 
 Sintética queda sin ninguna alucinación: todo lo que le quedaba era este caso.
 
+**Las cuatro filas son del día del cambio, con el fork 0.1.9, y dos se movieron después por
+razones ajenas al umbral.** El 0.1.10 arregla el crash de `pro_004` y deja la tasa de fallo de
+Sintética en **0.0 %**; la exclusión de `normalizacion` baja la alucinación de Chatterbox a
+**2.7 %** (A16, los cambios de regla y lo que movió cada uno). Las otras dos siguen vigentes. Los
+números publicados son los del README.
+
 **El efecto sobre las tasas, con la misma fórmula antes y después:**
 
 | | antes | ahora |
