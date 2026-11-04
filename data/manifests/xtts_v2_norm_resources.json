@@ -1,0 +1,11 @@
+{
+  "device": "cuda",
+  "generated": 20,
+  "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+  "omp_num_threads": null,
+  "peak_rss_mib": 4596.0,
+  "peak_vram_allocated_mib": 2041.6,
+  "peak_vram_reserved_mib": 2574.0,
+  "threads": 6,
+  "warmup": 3
+}
