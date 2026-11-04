@@ -12,19 +12,20 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-04):** la ablación con y sin normalizador, 120 clips juzgados a oído.
-  **Un normalizador adelante arregla los números**: de 27/100 a 95/100, y Pocket de 0/20 a 20/20 en
-  las dos variantes. Quedan dos defectos que no toca, uno en Qwen y otro en Pocket. → A21.
-- **Próximo paso:** los 20 clips de Pocket 24 capas que completan la tabla de A6. En paralelo, A18 y
-  A19 son minutos cada uno, y después sigue medir la precisión de los timestamps de palabra, que
-  decide el tamaño de 7.4 —el diferencial de v1—.
-  → A6 · A18 · A19 · SPEC 7.4.
+- **Último hito (2026-11-04):** la ablación con y sin normalizador, y la tabla de `normalizacion`
+  cerrada con los seis modelos. **Un normalizador adelante arregla los números**: de 27/100 a
+  95/100, y Pocket de 0/20 a 20/20 en las dos variantes. Escalar el modelo no lo arregla.
+  → A21 · A6.
+- **Próximo paso: rearmar el README**, que todavía declara la categoría como no medible. A18 y A19
+  son minutos cada uno, y después sigue medir la precisión de los timestamps de palabra, que decide
+  el tamaño de 7.4 —el diferencial de v1—.
+  → README · A18 · A19 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A6 **resuelta, falta un modelo** · ★★ A21 **resuelta** · A18 · A19 · ★ A7 · A8 ·
-  A9 · A17 · A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
+- **Abiertos:** ★★★ A6 **resuelta** · ★★ A21 **resuelta** · A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 ·
+  A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
   → §entradas.
 - **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
   similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
@@ -1699,13 +1700,13 @@ tiene para ganar: con dígitos emite palabras inventadas.
 
 **Respondida el 2026-11-04: sí, y de 27/100 a 95/100.** Las mismas 20 celdas por modelo —5 frases
 × 4 hablantes, semilla 1234, `ref0`— juzgadas a oído por sí o no sobre el tramo numérico, que es la
-afirmación que se publica. El brazo sin normalizador se derivó de las 220 transcripciones de A6 sin
-escuchar un clip; falta `pocket_tts_es_24l`, que nunca se transcribió.
+afirmación que se publica. El brazo sin normalizador se derivó de las 240 transcripciones de A6 sin
+escuchar un clip.
 
 | modelo | sin normalizador | con normalizador |
 |---|---|---|
 | pocket_tts_es | 0/20 | 20/20 |
-| pocket_tts_es_24l | — | 20/20 |
+| pocket_tts_es_24l | 0/20 | 20/20 |
 | chatterbox_v3 | 0/20 | 20/20 |
 | xtts_v2 | 4/20 | 19/20 |
 | qwen3_tts | 4/20 | 16/20 |
@@ -1736,6 +1737,10 @@ es 0.417, lo que sólo puede pasar si escribe la frase correcta a partir de habl
   leíble como cantidad, escribirla en palabras no protege.
 - **Pocket no dice las siglas.** Se come "IVA" en los cuatro y dice "afipí" donde va AFIP, en las
   dos variantes. Ya fallaba en el brazo base, tapado por el número.
+
+**Escalar no es la alternativa.** Las dos variantes de Pocket dan 0/20 sin normalizador y 20/20 con
+él, con 336.1 M de parámetros contra 109.5 M. Lo que falta es el front-end de texto, no capacidad,
+así que esperar un modelo más grande no reemplaza ponerlo adelante. → A6.
 
 **Los seis huecos internos de habla son todos de XTTS**, de 0.78 a 4.18 s, y los otros cinco modelos
 no tienen ninguno. El peor dura 8.17 s contra 3 a 4.8 del resto en la misma frase, con el número
