@@ -1,0 +1,64 @@
+# Brazo tratado de la ablación con y sin normalizador: las cinco frases de `normalizacion` con los
+# números y símbolos ya verbalizados, que es lo que un normalizador de texto entrega al TTS.
+#
+# Sólo cambian los tramos numéricos. Las siglas, la puntuación y el resto del texto quedan igual
+# que en `configs/phrases.yaml`, para que la comparación tenga una sola variable.
+#
+# `expected_verbalization` y `accepted_alternatives` son los mismos que los de la frase original:
+# los dos brazos se miden contra la misma referencia o la comparación no vale. Un test lo verifica,
+# y verifica además que el texto de acá normalizado dé exactamente esa verbalización.
+#
+# No se agrega a `configs/phrases.yaml` a propósito: ahí sumaría cinco frases a la rejilla
+# publicada y los seis modelos pasarían a tener filas faltantes.
+
+- id: nor_001n
+  text: "El total es quince mil setecientos cincuenta pesos con IVA incluido."
+  category: normalizacion
+  expected_verbalization: "el total es quince mil setecientos cincuenta pesos con iva incluido"
+  accepted_alternatives:
+    - "el total es pesos quince mil setecientos cincuenta con iva incluido"
+  failure_hypothesis: >
+    Ninguna: es el brazo tratado de nor_001. Si falla acá, el problema no es el front-end
+    de números sino el habla.
+  targets: []
+
+- id: nor_002n
+  text: "La inflación de julio fue del tres coma cinco por ciento."
+  category: normalizacion
+  expected_verbalization: "la inflacion de julio fue del tres coma cinco por ciento"
+  accepted_alternatives:
+    - "la inflacion de julio fue del tres punto cinco por ciento"
+  failure_hypothesis: >
+    Ninguna: es el brazo tratado de nor_002.
+  targets: []
+
+- id: nor_003n
+  text: "El trámite se hace en ARCA, antes AFIP, desde el veinticinco de mayo de dos mil veintiséis."
+  category: normalizacion
+  expected_verbalization: "el tramite se hace en arca antes afip desde el veinticinco de mayo de dos mil veintiseis"
+  failure_hypothesis: >
+    Ninguna para la fecha: es el brazo tratado de nor_003. Las siglas quedan sin expandir
+    a propósito, así que ARCA y AFIP siguen siendo la misma prueba que en el brazo base.
+  targets: []
+
+- id: nor_004n
+  text: "Ibas a ciento veinte kilómetros por hora en una zona de sesenta."
+  category: normalizacion
+  expected_verbalization: "ibas a ciento veinte kilometros por hora en una zona de sesenta"
+  failure_hypothesis: >
+    Ninguna: es el brazo tratado de nor_004.
+  targets: []
+
+- id: nor_005n
+  text: "Llamá al once cuarenta y cinco sesenta y siete ochenta y nueve cero cero o escribí a info arroba ejemplo punto com punto ar."
+  category: normalizacion
+  expected_verbalization: "llama al once cuarenta y cinco sesenta y siete ochenta y nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+  accepted_alternatives:
+    - "llama al once cuatro cinco seis siete ocho nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+    - "llama al once cuatro mil quinientos sesenta y siete ochenta y nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+    - "llama al uno uno cuatro cinco seis siete ocho nueve cero cero o escribi a info arroba ejemplo punto com punto ar"
+  failure_hypothesis: >
+    Ninguna: es el brazo tratado de nor_005. Las alternativas se conservan porque agrupar
+    el teléfono distinto del texto sigue siendo una lectura válida del número.
+  targets:
+    - {word: "Llamá", phenomenon: yeismo}

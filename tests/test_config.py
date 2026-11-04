@@ -20,6 +20,7 @@ from rtb.config import (
     words_of,
 )
 from rtb.schema import Phenomenon, PhraseCategory
+from rtb.textnorm import normalize_text
 
 YEISMO = PhraseCategory.YEISMO_REHILADO.value
 
@@ -83,6 +84,34 @@ def test_committed_spoken_length_diverges_only_where_expected(repo_root: Path) -
     diverging = {p.id for p in phrases if p.n_spoken_words != p.n_words}
     assert diverging == {"nor_001", "nor_002", "nor_003", "nor_004", "nor_005"}
     assert next(p for p in phrases if p.id == "nor_005").n_spoken_words == 24
+
+
+def test_the_ablation_arm_keeps_the_same_reference(repo_root: Path) -> None:
+    # Los dos brazos se miden contra la misma referencia o la comparacion no vale, y el texto ya
+    # verbalizado tiene que normalizar exactamente a esa referencia.
+    base = {phrase.id: phrase for phrase in load_phrases(repo_root / "configs" / "phrases.yaml")}
+    treated = load_phrases(repo_root / "configs" / "phrases_ablation.yaml")
+
+    assert {phrase.id for phrase in treated} == {f"nor_00{n}n" for n in range(1, 6)}
+    for phrase in treated:
+        original = base[phrase.id[:-1]]
+        assert normalize_text(phrase.text) == phrase.expected_verbalization
+        assert phrase.expected_verbalization == original.expected_verbalization
+        assert phrase.accepted_alternatives == original.accepted_alternatives
+        # Las reglas de truncamiento y de loop dividen por esto: si cambiara, los dos brazos
+        # dejarian de juzgarse con el mismo criterio.
+        assert phrase.n_spoken_words == original.n_spoken_words
+
+
+def test_the_ablation_arm_stays_out_of_the_published_grid(repo_root: Path) -> None:
+    # En phrases.yaml sumarian cinco frases a la rejilla y los seis modelos quedarian con filas
+    # faltantes.
+    published = {phrase.id for phrase in load_phrases(repo_root / "configs" / "phrases.yaml")}
+    ablation = load_phrases(repo_root / "configs" / "phrases_ablation.yaml")
+    treated = {phrase.id for phrase in ablation}
+
+    assert published.isdisjoint(treated)
+    assert len(published) == 45
 
 
 def test_committed_speakers_declare_their_provenance(repo_root: Path) -> None:
