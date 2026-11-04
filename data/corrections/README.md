@@ -27,6 +27,9 @@ prosa. El trabajo es escuchar, corregir lo que falla y marcar `revisado` con cua
 - **Escribir lo que se oye, no lo que debería haber dicho.** Si el modelo se come un dígito, va sin
   ese dígito.
 - **Sin marcar no cuenta.** `dicho` pre-cargado y `revisado` vacío significa que nadie lo escuchó.
+- **`[ininteligible]` para el habla que no se puede escribir.** Cuenta como una palabra y marca que
+  ahí hay sonido que no se deja transcribir; el largo real no lo dice la transcripción sino la
+  cola. Es para el balbuceo, no para una palabra dudosa: ante la duda va lo que suena.
 
 **La forma hablada esperada no está en la planilla, a propósito.** Ni `verbalizacion` ni
 `alternativas`. A la vista, se escribe lo que el modelo debería haber dicho en vez de lo que dijo,
@@ -44,18 +47,38 @@ dan audio distinto por semilla y no tienen ese atajo.
 Si un clip se regenera y cambia, su `audio_sha` cambia y la fila es nueva: la transcripción vieja
 ya no describe ese audio y hay que rehacerla. Eso es a propósito.
 
+**El archivo acumula modelos, así que hay que pasarlos todos.** Reconstruir con menos `--model` de
+los que el TSV ya tiene borraría transcripciones hechas, y la herramienta aborta antes de
+escribir en vez de dejarte el archivo mutilado.
+
+## Sondear un modelo sin transcribirlo entero
+
+`--one-seed MODELO` deja un audio por cada (hablante, frase), para ese modelo solo. Sirve para
+preguntar si el ASR retrata bien a un modelo antes de comprometer sus 60 clips: 20 filas, diez
+minutos. Va por modelo y no global, así uno sondeado convive en el mismo TSV con otros
+transcriptos enteros, y hay que repetirlo en cada corrida o el modelo sondeado se expande a 60.
+
+El descarte ocurre **después** de agrupar por hash: si las tres semillas son el mismo audio, la
+celda ya era una sola fila y `n` sigue diciendo 3.
+
 ## Los comandos
 
 ```bash
-python -m rtb.metrics.corrections --category normalizacion --model sintetica \
-  --manifest data/manifests/sintetica.jsonl
+python -m rtb.metrics.corrections --category normalizacion \
+  --one-seed pocket_tts_es \
+  --model sintetica     --manifest data/manifests/sintetica.jsonl \
+  --model pocket_tts_es --manifest data/manifests/pocket_tts_es.jsonl \
+  --model xtts_v2       --manifest data/manifests/xtts_v2.jsonl \
+  --model chatterbox_v3 --manifest data/manifests/chatterbox_v3.jsonl \
+  --model qwen3_tts     --manifest data/manifests/qwen3_tts.jsonl
 
 uv run scripts/stage_listening_clips.py --verdict normalizacion \
   --listening data/corrections --dest audio/corrections --column revisado
 ```
 
 El segundo junta los wavs en `audio/corrections/normalizacion/`, numerados por la fila del TSV, y
-con `--pending-only` trae sólo los que faltan. Esa carpeta no se commitea: el artefacto es el TSV.
+con `--pending-only` —que conviene siempre— trae sólo los que faltan; los huecos en la numeración
+dicen cuántos ya están. Esa carpeta no se commitea: el artefacto es el TSV.
 
 Regenerar **preserva lo ya transcripto**: se busca por `audio_sha`, así que se puede parar, seguir
 otro día y editarlo en una planilla. Lo único que lo rompe es meter un tab o un salto de línea
