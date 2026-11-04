@@ -13,6 +13,20 @@ each number, and says plainly which questions it does **not** answer.
 model that runs out of competition. Every number below comes from JSONL committed to this
 repository, and every threshold from [`configs/thresholds.yaml`](configs/thresholds.yaml).
 
+## The phrase set
+
+45 phrases in 10 categories, each written to expose a named failure mode: *yeísmo rehilado*, the
+multiple trill, *voseo* stress patterns, very short utterances, local vocabulary, place names, text
+normalization, English loanwords, prosody, and long sentences. 28 of them carry word-initial
+targets (20 yeísmo, 8 rhotic) per speaker and seed — 1008 accent measurements already in the
+corpus, waiting for the v1 metric.
+
+Reference speech is [OpenSLR SLR61](https://openslr.org/61/) (Argentinian Spanish, CC BY-SA 4.0):
+four speakers, two male and two female, the same four for every model. Reference clips are whole
+utterances concatenated with 250 ms of silence, and the concatenation was verified not to damage
+identity in the embedding — the weakest concatenated reference scores 0.823 against a real control
+of the same speaker, above the weakest real same-speaker pair.
+
 ## Results
 
 | | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética † | Pocket TTS 6L ‖ | Pocket TTS 24L ‖ |
@@ -36,17 +50,18 @@ by id, and it is in the table because it shares the four speakers, the scale and
 ‡ Its similarity is measured against audio that was in its training set, so it is an **upper
 bound**, not a comparable score. § With a process restart every 27 syntheses; the same grid in one
 process drifts to 0.936. Both numbers are real and the difference is explained below.
+
 ‖ **Pocket TTS is a v1 model, and CPU is the device its authors support.** `load_model` takes no
 device and returns on CPU; the GPU is reached by moving the module by hand, so the quality grid ran
 on CPU and the GPU column is left without a published figure. It was measured all the same, as
 verification rather than as a row, under *Cost*. The two variants differ only in transformer depth:
 6 layers and 109.5 M parameters against 24 layers and 336.1 M.
+
 ¶ The library executes `torch.set_num_threads(1)` at import, which overrides `OMP_NUM_THREADS`.
 Raising it afterwards changes nothing — measured at 1, 4 and 8 threads — so the figure is published
 at one thread and compared against four.
 
-Hardware: NVIDIA RTX 4050 Laptop (6141 MiB) for GPU, fp32 for CPU. Everything ran in-process on the
-same machine, each model in its own session.
+> Hardware: NVIDIA RTX 4050 Laptop (6141 MiB) for GPU, fp32 for CPU. Everything ran in-process on the same machine, each model in its own session.
 
 ### How to read them
 
@@ -63,19 +78,21 @@ The scaled column puts the raw cosine between that floor and that ceiling. It is
 a synthesis can sit above the ceiling, and 51 of Qwen's 540 do — 38 of which stop exceeding it when
 measured against a clip the model never heard, which is the next caveat at its extreme.
 
-**Part of that similarity is the prompt, not the speaker.** Measured against the *other* reference
-clip of the same speaker, each of the three v0 zero-shot models scores lower: 0.027 in XTTS-v2, 0.032 in Qwen3-TTS and 0.035
-in Chatterbox v3 of raw cosine — 0.040 to 0.053 of scale — with the sign holding in 92 to 96 % of
-each model's 540 cells. It cannot be speaker identity: the two reference clips of one speaker score
-0.853–0.927 against each other, above the ceiling, so a model copying only the voice would score
-the same against both. It is **declared and not subtracted**, because cloning from that prompt is
-the question this benchmark asks. The three carry it almost equally, so the order between them does
-not depend on it; the absolute number does. The second clip was not run for Pocket TTS, so its
-0.340 and 0.389 carry an unmeasured share of the same effect — which would make them lower, not
-higher.
+**Part of that similarity is the prompt, not the speaker.** Scored against the *other* reference
+clip of the same speaker, each v0 zero-shot model drops 0.027 to 0.035 of raw cosine — 0.040 to
+0.053 of scale — and the sign holds in 92 to 96 % of its 540 cells. It is **declared and not
+subtracted**, because cloning from that prompt is the question this benchmark asks. The three carry
+it almost equally, so the order between them does not depend on it; the absolute number does. The
+second clip was not run for Pocket TTS, so its 0.340 and 0.389 carry an unmeasured share of the
+same effect — which would make them lower, not higher. Why it cannot be speaker identity, and how
+the effect splits between prompt and target, is in [`ANALYSIS.md`](ANALYSIS.md) (A10).
 
 **WER is published next to a real-audio floor.** The same ASR over 12 real recordings of these
 speakers gives WER 0.000, so the transcription is not adding error of its own on this material.
+That floor holds for the text in the aggregate and not for every kind: on `normalizacion` the same
+ASR scores Sintética at 0.242 where the ear scores 0.007, because it writes numbers back as digits
+whatever it hears. That category is measured by ear and published apart, under *Text
+normalization*.
 
 **The failure rate has two columns on purpose.** One rule — audible sound more than 0.5 s after the
 last word — dominates it and inverts the ranking, so the rate is published with and without that
@@ -98,49 +115,101 @@ them:
 - [The best and the worst clone](data/samples/06_identity-has-a-scale/), with the real recording
   first, because without the original "sounds similar" means nothing.
 
+## Text normalization
+
+**The ASR cannot score this category, so 240 clips were transcribed by ear.** Whisper writes
+numbers back as digits whatever it hears, so a synthesis that correctly says *"quince mil
+setecientos cincuenta"* returns as `15 750` and scores 5 errors out of 11 without the model having
+made one. Forcing words with `initial_prompt` fixes plain numbers, leaves dates in digits and
+degrades other content ("AFIP" → "Zafip"). The figures below are WER against what each model
+actually said, and they are **not averaged into the aggregate**: two instruments do not mix.
+
+| | WER by ASR | **WER by ear** | rows |
+|---|---|---|---|
+| Sintética † | 0.242 | **0.007** | 20 ‡ |
+| XTTS-v2 | 0.399 | **0.177** | 60 |
+| Qwen3-TTS | 0.387 | **0.230** | 60 |
+| Chatterbox v3 | 0.467 | **0.395** | 60 |
+| Pocket TTS 6L | 0.606 | **0.582** | 20 § |
+| Pocket TTS 24L | 0.631 | **0.592** | 20 § |
+
+‡ Deterministic: its three seeds are bit-identical, so 20 clips cover its 60 rows. § One seed per
+cell, a probe rather than the full 60.
+
+**The instrument had the ranking wrong.** By ASR, Qwen beat XTTS; by ear XTTS wins by five points.
+The same pass recovered 24 real failures that the exclusion was swallowing.
+
+### A normalizer in front fixes it
+
+The same grid with the numbers already written out in words — what a text front-end hands the TTS —
+judged by ear, yes or no, on the numeric span alone:
+
+| | without | with |
+|---|---|---|
+| Pocket TTS 6L | 0/20 | **20/20** |
+| Pocket TTS 24L | 0/20 | **20/20** |
+| Chatterbox v3 | 0/20 | **20/20** |
+| XTTS-v2 | 4/20 | 19/20 |
+| Qwen3-TTS | 4/20 | 16/20 |
+| Sintética † | 19/20 | 20/20 |
+
+27/120 to 115/120 over the six models. **Sintética is the control**: it already
+has a normalizer in production, and 16 of its 20 clips come out bit-identical between the two arms,
+so putting another one in front is a no-op. That is what validates the method.
+
+**Scaling the model is not the alternative.** The two Pocket variants differ 4× in depth — 336.1 M
+parameters against 109.5 M — and both go 0/20 without a normalizer and 20/20 with one. What they
+lack is the text front-end, not capacity.
+
+**Two defects it does not fix.** Qwen regroups what is already in words: fed *"ochenta y nueve cero
+cero"* it says *"ochenta y nueve mil"*, 0 of 4 on the phone number. Where the spoken form is itself
+readable as a quantity, writing it out does not protect. And Pocket does not say acronyms — it
+drops "IVA" in all four and says *"afipí"* where AFIP belongs, in both variants.
+
 ## What v0 does not claim
 
 **Nothing about dialect realization.** The accent metric is v1 (SPEC 7.4), and without it no
 category measures whether the output *sounds* Rioplatense — only whether it was understood. Two
 categories are blind to their own phenomenon: Spanish spelling is yeísta, so 97.2 % of yeísmo
 onsets come back as `ll…`, which covers [ʃ], [ʒ] and [ʝ] alike, and a model can produce a Castilian
-[ʝ] through the whole phrase and score WER 0.000. `lexico_local` turned out the same way for
-stress. What v0 publishes is identity, intelligibility, failures and cost.
+[ʝ] through the whole phrase and score WER 0.000. `lexico_local` is blind the same way to stress:
+a model can say *bondí* for *bóndi*, every phoneme right and the accent on the wrong syllable, and
+as long as the ASR writes the word the row scores 0.000. What v0 publishes is identity,
+intelligibility, failures and cost.
 
 **Not every category is measured the same way, and that is declared:**
 
 | level | categories | method |
 |---|---|---|
 | **automatic** | yeísmo, rhotics, short utterances, long sentence, vocabulary, place names, loanwords | WER/CER against the transcript, plus a failure taxonomy from the alignment |
-| **listening only** | text normalization, naturalness, and three phrases by name: `top_001` (Callao, [ka'ʃao] vs [ka'ʎao]), `rot_005` (the *pero*/*perro* minimal pair), `rot_004` (the /tɾ/ cluster) | blind binary labelling |
+| **human transcript** | text normalization | the same WER/CER, but against what the model actually said, written down by ear |
+| **listening only** | naturalness, and three phrases by name: `top_001` (Callao, [ka'ʃao] vs [ka'ʎao]), `rot_005` (the *pero*/*perro* minimal pair), `rot_004` (the /tɾ/ cluster) | blind binary labelling |
 | **semi-automatic** (v1) | voseo, prosody | vowel-nucleus duration, final F0 slope |
 
 Those three phrases are scored automatically for intelligibility like the rest of their
 category; what needs an ear is the phenomenon they were written to expose, which no alignment can
 reach — an intervocalic phoneme, an opposition between two taps, a consonant cluster.
 
-`normalizacion` is unmeasurable with this instrument, and that is a finding, not an omission:
-Whisper writes numbers back as digits, so a synthesis that correctly says *"quince mil setecientos
-cincuenta"* returns as `15 750` and scores 5 errors out of 11 without the model having made one.
-Forcing words with `initial_prompt` fixes plain numbers, leaves dates in digits and degrades other
-content ("AFIP" → "Zafip"), so the instrument stays uniform and the category is declared out of
-scope.
+**`normalizacion` is out of the aggregate and has its own table above**, measured by ear because
+this instrument cannot score it. It is a finding, not an omission, and it is published rather than
+dropped.
 
-**Its 60 rows per model are now excluded by category, and until 2026-10-30 they were excluded row
-by row** — when one side had digits and the other did not. That heuristic assumed a model would at
+**Its 60 rows per model are excluded by category, and until 2026-10-30 they were excluded row by
+row** — when one side had digits and the other did not. That heuristic assumed a model would at
 least attempt the number. Pocket TTS does not: it emits invented words where the digits belong, so
 `$15.750 con IVA` comes back as *"la de Ampran, Bocún, Rua de New Conicuerto incluido"* and
 `25/05/2026` as *"el vacío a Breden y Sioux Falls"*. No row of its tripped the rule, and its 60
 would have been averaged in against models whose 60 were already out. **Every model now publishes
-over the same 480 rows**, and what the change cost is under *Two honesty notes* below. That a model has no
-number front-end at all is itself worth knowing before deploying one, and no aggregate here will
-tell you — only this paragraph.
+over the same 480 rows**, and what the change cost is under *Two honesty notes* below. That a model
+has no number front-end at all is worth knowing before deploying one, and a table says so instead
+of a paragraph.
 
 ## Failures
 
 `hard` (no audio), `trunc` (missing words at the end), `loop` (repetition **with** extra material),
 `halluc` (extra words), `trailing` (audible sound after the last word). Percentages are over
-classifiable rows: 540 minus the 60 of `normalizacion`, which is out of scope for every model.
+classifiable rows: 540 minus the 60 of `normalizacion`, which is out of scope for every model and
+carries its own table above.
 
 | | n | hard | trunc | loop | halluc | trailing | **any** |
 |---|---|---|---|---|---|---|---|
@@ -151,12 +220,6 @@ classifiable rows: 540 minus the 60 of `normalizacion`, which is out of scope fo
 | Pocket TTS 6L | 480 | 0.0 | 0.0 | 0.8 | 3.5 | 0.0 | **3.5** |
 | Pocket TTS 24L | 480 | 0.0 | 0.0 | 0.0 | 3.5 | 0.8 | **4.4** |
 | *real audio* | 12 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | **0.0** |
-
-**The denominator is the same for all six, and that took a rule change.** Excluding by detection
-rather than by category kept rows a model happened to garble past the detector: Chatterbox used to
-keep 21 of its 60 ("El total es 15 con su asiento"), of which 9 counted as failures. Per row that
-was right — garbling an amount that way *is* a failure — but across models it compared 480 rows
-against 501. The category is now dropped for everyone.
 
 ### The trailing audio, which is the number that moves
 
@@ -307,23 +370,7 @@ detection was not excluding it at all. On the failure rate the change is worth 0
 intelligibility it is the largest of the four — Chatterbox's mean WER goes from 0.108 to 0.093 and
 its CER from 0.120 to 0.111, Sintética's WER from 0.060 to 0.056, Qwen's from 0.012 to 0.011, and
 XTTS does not move because its 60 rows were already out. **Every figure in this README is the
-post-change one**, so the v0 numbers published on 2026-10-03 differ. That a rule written for a new
-model ends up favouring the one that looks worst here is the best evidence it was not written
-looking at the result.
-
-## The phrase set
-
-45 phrases in 10 categories, each written to expose a named failure mode: *yeísmo rehilado*, the
-multiple trill, *voseo* stress patterns, very short utterances, local vocabulary, place names, text
-normalization, English loanwords, prosody, and long sentences. 28 of them carry word-initial
-targets (20 yeísmo, 8 rhotic) per speaker and seed — 1008 accent measurements already in the
-corpus, waiting for the v1 metric.
-
-Reference speech is [OpenSLR SLR61](https://openslr.org/61/) (Argentinian Spanish, CC BY-SA 4.0):
-four speakers, two male and two female, the same four for every model. Reference clips are whole
-utterances concatenated with 250 ms of silence, and the concatenation was verified not to damage
-identity in the embedding — the weakest concatenated reference scores 0.823 against a real control
-of the same speaker, above the weakest real same-speaker pair.
+post-change one**, so the v0 numbers published on 2026-10-03 differ.
 
 ## Design in one paragraph
 

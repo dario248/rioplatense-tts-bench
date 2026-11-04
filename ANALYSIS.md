@@ -13,8 +13,8 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
 - **Último hito (2026-11-04):** la ablación con y sin normalizador, y la tabla de `normalizacion`
-  cerrada con los seis modelos. **Un normalizador adelante arregla los números**: de 27/100 a
-  95/100, y Pocket de 0/20 a 20/20 en las dos variantes. Escalar el modelo no lo arregla.
+  cerrada con los seis modelos. **Un normalizador adelante arregla los números**: de 27/120 a
+  115/120, y Pocket de 0/20 a 20/20 en las dos variantes. Escalar el modelo no lo arregla.
   → A21 · A6.
 - **Próximo paso: rearmar el README**, que todavía declara la categoría como no medible. A18 y A19
   son minutos cada uno, y después sigue medir la precisión de los timestamps de palabra, que decide
@@ -1516,7 +1516,7 @@ resultado.
 decidir. En los tres casos las filas de Sintética ya estaban medidas y se sabía qué iba a pasar. Lo
 que sostiene cada cambio es otra cosa: un mecanismo nombrado y una escucha, no el resultado.
 
-- **Frontera:** Darío escuchó los clips y los modelos dicen "bondi". Perdían por un carácter.
+- **Frontera:** a oído, los modelos dicen "bondi". Perdían por un carácter.
 - **Loop:** la condición que faltaba estaba **escrita en el SPEC desde antes** —"repite y se pasa de
   largo"— y su barrido tiene meseta de 1.1 a 1.5, contra el filo del de frontera.
 - **Precedencia:** copia el mecanismo que `boundary_disagreement` ya usaba, y el argumento es
@@ -1698,7 +1698,7 @@ está medido en A6, sino cuál se arregla con un normalizador adelante, que es u
 producción. Convierte el defecto en una recomendación. Pocket es el caso extremo y el que más
 tiene para ganar: con dígitos emite palabras inventadas.
 
-**Respondida el 2026-11-04: sí, y de 27/100 a 95/100.** Las mismas 20 celdas por modelo —5 frases
+**Respondida el 2026-11-04: sí, y de 27/120 a 115/120.** Las mismas 20 celdas por modelo —5 frases
 × 4 hablantes, semilla 1234, `ref0`— juzgadas a oído por sí o no sobre el tramo numérico, que es la
 afirmación que se publica. El brazo sin normalizador se derivó de las 240 transcripciones de A6 sin
 escuchar un clip.

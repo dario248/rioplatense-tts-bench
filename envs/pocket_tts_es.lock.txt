@@ -80,7 +80,7 @@ python-multipart==0.0.32
 pyyaml==6.0.3
 requests==2.34.2
 rich==15.0.0
--e file:///home/dpaez/mecantronic/mec_ai/sintetica/rioplatense_tts_bench
+-e .
 safetensors==0.8.0
 scipy==1.17.1
 sentencepiece==0.2.2
