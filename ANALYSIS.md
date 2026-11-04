@@ -12,21 +12,22 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-02):** la escucha de los 30 clips de `normalizacion` confirmó que la
-  exclusión tapa fallas reales —24 de 30 celdas son del modelo— y descubrió que el instrumento se
-  equivoca en las dos direcciones dentro de la misma fila: Whisper repara un dígito que el modelo
-  se comió e inventa un error que no cometió. → A6.
-- **Próximo paso: transcribir a mano los 20 clips de `normalizacion` de Sintética** (A6, piloto de
-  la transcripción humana), con el criterio de seguir o parar fijado antes de empezar. Después
-  sigue medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
-  diferencial de v1— y en paralelo van A18 y A19, que son minutos cada uno.
-  → A6 · SPEC 7.4 · A18 · A19.
-- **Bloqueado para publicar:** **dos tasas de v0 están subestimadas** —XTTS y Chatterbox— y por
-  cuánto no se sabe hasta tener los transcripts corregidos. → A6.
+- **Último hito (2026-11-03):** 220 clips de `normalizacion` transcriptos a oído. La categoría
+  vuelve a tener números y **el instrumento tenía el orden mal**: medido con Whisper, Qwen le ganaba
+  a XTTS; a oído gana XTTS y por cinco puntos. → A6.
+- **Próximo paso: la ablación con y sin normalizador** (A21), que convierte el defecto de dígitos en
+  una recomendación y no necesita el paquete normalizador para correr. Antes van los 20 clips de
+  Pocket 24 capas que completan la tabla de A6. En paralelo, A18 y A19 son minutos cada uno, y
+  después sigue medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
+  diferencial de v1—.
+  → A21 · A6 · A18 · A19 · SPEC 7.4.
+- **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
+  declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A6 · ★★ A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 · A11 **diferida**. Sólo A6
-  puede mover un número publicado. → §entradas.
+- **Abiertos:** ★★★ A6 **resuelta, falta un modelo** · ★★ A18 · A19 · A21 · ★ A7 · A8 · A9 · A17 ·
+  A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
+  → §entradas.
 - **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
   similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
   escrito.
@@ -426,6 +427,26 @@ no tiene ninguna fila con este patrón y queda igual.
 
 ---
 
+**Confirmado el 2026-11-03, y es peor que una palabra: el ASR trunca el balbuceo.** En la sonda de
+transcripción a oído de `normalizacion`, Pocket entra en loop y lo que Whisper escribe termina en
+un punto:
+
+```
+whisper: El trámite se hace en arca, antes afipí, desde el vacío.
+a oído : ...desde el vacía breten lita li pudi tate rapita pia pia pia pia
+```
+
+La fila puntúa 0.471 donde le corresponde 0.706. No es el ASR comiéndose la última palabra: es el
+ASR callando varios segundos de habla, y mientras calla, la regla de loop no tiene texto del que
+dispararse. Sobre los veinte clips de la sonda, Whisper escribió 6 % menos palabras que las
+dichas.
+
+**Qué falta medir.** Cuántas filas con cola larga tienen habla sin transcripción debajo, y cuántas
+de ésas son loop. `trailing_audio_s` ya mide el hueco; falta saber qué hay adentro, y eso vuelve a
+ser escucha.
+
+---
+
 ## A3 ★★★ — Piso de ruido del instrumento
 
 **Pregunta.** ¿Cuál es la tasa de error de la propia taxonomía, y por debajo de qué tasa de fallo
@@ -575,10 +596,10 @@ la pregunta del benchmark, y restarlo sería inventar un número.
 **Pregunta.** ¿Cómo se mide la verbalización de números, fechas, montos y siglas si Whisper las
 vuelve a escribir en dígitos?
 
-**Dónde quedó.** La categoría está fuera del agregado desde el 2026-10-30. La escucha del
-2026-11-02 mostró dos cosas: adentro hay fallas reales del modelo —24 de 30 celdas— y el
-instrumento se equivoca en las dos direcciones, así que ninguna regla sobre el transcript la va a
-recuperar. Lo decidido es transcribir los clips a oído, con un piloto de 20.
+**Dónde quedó.** Resuelta el 2026-11-03, y por fuera del ASR. Las 220 transcripciones a oído dan la
+tabla de la categoría para cinco de los seis modelos y **corrigen el orden que publicaba el
+instrumento**. No vuelve al agregado de 480 filas —no se promedian dos instrumentos— sino que se
+publica como tabla propia. Falta un solo modelo, que son veinte clips.
 
 **Decidido el 2026-10-30: se excluye la categoría entera, y no las filas que la regla detecta.** Lo
 forzó Pocket TTS, que no verbaliza números: emite palabras inventadas donde van los dígitos, así
@@ -672,21 +693,66 @@ Whisper sobre habla sintética rioplatense y comparar otro ASR sin regenerar una
 | `sintetica` | 20/20 | **20**, que cubren sus 60 filas |
 | los otros cinco | 0/20 cada uno | 60 cada uno |
 
-**El piloto, con el criterio fijado antes de transcribir.** Van primero los 20 de Sintética. Seguir
-con los 300 restantes si pasa cualquiera de las dos: tres o más celdas de veinte donde el error que
-reporta el instrumento no es el que cometió el modelo, o un movimiento de más de dos puntos en el
-WER de la categoría. Medir también en qué dirección falla —errores inventados contra reparados— y
-cuánto lleva un clip de verdad, que es lo que recalibra las 300 restantes.
+**Hecho entre el 2026-11-02 y el 11-03: las 220 transcripciones.** Sintética como piloto —20 clips
+que cubren sus 60 filas, por el audio byte-idéntico entre semillas—, una sonda de 20 de Pocket, y
+los 60 de cada uno de XTTS, Chatterbox y Qwen. Dos horas y media, treinta segundos por clip.
 
-**Dos cosas sobre el piloto.** No contesta si generaliza: Sintética es el mejor de los seis acá y
-es donde corregir rinde más, porque Whisper sólo puede reparar un número que está casi bien, así
-que antes de comprometer los 300 va una sonda de diez clips de Pocket. Y deja algo aunque la
-respuesta sea que no: comparar los 20 corregidos contra Whisper es el WER del instrumento sobre el
-habla que mide, que el benchmark hoy no tiene por ningún lado.
+| modelo | WER con Whisper | WER a oído | mueve | error propio de Whisper |
+|---|---|---|---|---|
+| Sintética | 0.242 | **0.007** | −0.235 | 0.240 |
+| XTTS-v2 | 0.399 | **0.177** | −0.222 | 0.342 |
+| Qwen3-TTS | 0.387 | **0.230** | −0.157 | 0.321 |
+| Chatterbox v3 | 0.467 | **0.395** | −0.072 | 0.298 |
+| Pocket 6c | 0.606 | **0.582** | −0.024 | 0.275 |
 
-**Costo.** Media hora de herramienta, veinte minutos los 20 de Sintética, y entre tres y cuatro
-horas los 300 restantes si cada clip lleva cuarenta segundos. Eso último compite con la métrica de
-acento de SPEC 7.4, que es el bloqueante real de v1.
+La última columna es el instrumento medido contra el oído —transcripción humana como referencia,
+Whisper como hipótesis—, y es un número que el proyecto no tenía. En Chatterbox y en Pocket no es
+error del ASR sino desacuerdo: sobre balbuceo ninguno de los dos lados es confiable.
+
+**El instrumento tenía el orden mal.** Con Whisper, Qwen le ganaba a XTTS por un pelo; a oído gana
+XTTS y por cinco puntos. Es la primera vez en el proyecto que corregir una medición da vuelta una
+comparación entre modelos. Y a Sintética le cobrábamos el 97 % de un WER que era del ASR: 54 de sus
+60 filas no tienen un solo error.
+
+**Aparecen 24 fallas que la exclusión se tragaba**, clasificando con la transcripción a oído: XTTS 8
+alucinaciones y 2 truncamientos, Qwen 4 y un desacuerdo de frontera, Chatterbox 2, 1 y 1 loop,
+Pocket 6 y 1. Sintética ninguna. Era la tesis de esta entrada y ahora tiene número.
+
+**Pocket se sondeó y no se transcribió entero.** El criterio fijado de antes —seguir si tres celdas
+de veinte quedan mal retratadas o si el WER se mueve más de dos puntos— falla sus dos cláusulas por
+poco, y la decisión fue igual no seguir: el veredicto no cambia con ninguna de las dos mediciones,
+los 2.4 puntos están adentro del 27.5 % en que transcriptor y ASR difieren, y lo que la cláusula
+atrapó no es un problema de números sino que Whisper **trunca el balbuceo**, que golpea a las ocho
+categorías y está en A2.
+
+**La dispersión entre semillas quedó validada como pre-test barato.** Cuánto difieren entre sí los
+tres transcripts de una misma celda se calcula gratis sobre lo que ya está en disco, y predijo los
+cuatro residuos con un par de puntos de error: 0.141 XTTS, 0.196 Qwen, 0.369 Chatterbox y 0.659
+Pocket, contra 0.177, 0.230, 0.395 y 0.582 medidos. Sintética da 0.000 y no cuenta, porque su audio
+es byte-idéntico por determinismo y no por calidad. Con esto se decide **antes** de escuchar si a un
+modelo le conviene la transcripción a oído.
+
+**Una semilla alcanza para la tabla.** Restringiendo a `s1234` —20 celdas por modelo en vez de 60—
+el orden sale idéntico y el valor se corre hasta cinco puntos, que es Chatterbox. Sirve para
+comparar modelos, no para publicar un número suelto.
+
+**`[ininteligible]`, la marca de la transcripción.** Dos filas, las dos de XTTS y las dos la misma
+forma: el modelo dice la frase bien, termina, y después agrega habla inventada que no son palabras,
+que Whisper convierte en español plausible. Cuenta como una palabra: borrarla haría que la fila
+puntúe como si la frase hubiera salido perfecta, y contar una sola subestima tres segundos de habla
+pero no inventa un largo que nadie sabe. Pesa 0.002 en el WER de XTTS, así que la decisión no la
+manda el número. Las dos salen clasificadas como alucinación, y qué hay adentro de esa cola está en
+A13.
+
+**Decidido el 2026-11-03: la categoría no vuelve al agregado.** Promediar una métrica medida con
+ASR y otra medida a oído arruina las dos. `normalizacion` se publica como tabla propia con el
+método declarado al lado, que es lo que SPEC 7.6 prevé para los niveles de medición, y eso cierra
+A20: el defecto de Pocket por fin aparece en una tabla en vez de en prosa.
+
+**Lo que falta: 20 clips de Pocket 24 capas**, el único modelo sin transcribir. Diez minutos y la
+tabla tiene los seis. Las 40 filas que le faltan a Pocket 6c y las 60 de la variante grande son 50
+minutos más, y sólo hacen falta si la tabla va sobre las 60 filas. El uso de todo esto en la
+ablación con y sin normalizador está en A21.
 
 ---
 
@@ -1087,6 +1153,13 @@ XTTS (59 %) tienen palabras que nadie pidió, contra 5 de 230 (2.2 %) en Chatter
 de naturaleza distinta y el README no las puede publicar bajo una sola etiqueta: una es el modelo
 inventando contenido, la otra es el vocoder que no corta. Para un agente conversacional la segunda
 es latencia y la primera es una respuesta equivocada.
+
+**Precisión del 2026-11-03: la cola de XTTS no son palabras, y Whisper se las inventa.** Las dos
+filas de `normalizacion` que la transcripción a oído marcó `[ininteligible]` son colas de XTTS, y
+el ASR escribió español plausible encima —"El día 9 vos faltar en óleo. Vos olvidarás el cuernito"
+sobre un balbuceo—. Así que "habla inventada" es el fenómeno visto a través del ASR: hay fonación
+con prosodia de habla, y es Whisper el que le pone palabras. Para la cuenta de esta tabla no cambia
+nada, y para A2 sí: es la contracara de que el ASR trunque el balbuceo en vez de escribirlo.
 
 **Tres cosas más que salieron de la escucha:**
 - **Cero `corte` en todo el corpus.** Ninguna cola es la frase cortándose. La hipótesis existía y
@@ -1576,6 +1649,57 @@ ninguna tabla**: un lector que mire sólo los números ve WER 0.056 y no se ente
 
 **Qué necesita.** O la categoría vuelve a ser medible, que es A6 y es trabajo de v1, o el README
 lleva la advertencia en prosa. Hoy la lleva en prosa.
+
+**Decidido el 2026-11-03: sale de la prosa.** `normalizacion` se publica como tabla propia medida a
+oído (A6), y la ablación con y sin normalizador (A21) convierte el defecto en una recomendación.
+Esta entrada se cierra cuando la tabla esté en el README.
+
+---
+
+## A21 ★★ — ¿Un normalizador adelante arregla los números, y en cuáles de los seis?
+
+**Pregunta.** Poniendo el texto ya verbalizado a la entrada, ¿cuántos modelos dicen bien el número,
+y cuáles siguen fallando?
+
+**Por qué importa.** Para elegir un TTS la pregunta práctica no es cuál falla con dígitos, que ya
+está medido en A6, sino cuál se arregla con un normalizador adelante, que es una línea de código en
+producción. Convierte el defecto en una recomendación. Pocket es el caso extremo y el que más
+tiene para ganar: con dígitos emite palabras inventadas.
+
+**No necesita el paquete normalizador.** `configs/phrases.yaml` ya trae las cinco frases escritas
+en palabras desde v0, en `expected_verbalization`, que es la referencia de la métrica. Eso **es** la
+salida del normalizador, escrita a mano. Lo único que falta es menor: esa forma está sin tildes
+porque sirve para comparar y no para sintetizar, y darle "llama" en vez de "llamá" le cambia la
+acentuación al modelo. Hay que escribir las cinco con ortografía de síntesis.
+
+**La métrica es binaria y no WER: ¿dijo bien el número, sí o no?** Dos razones. En el brazo tratado
+Whisper vuelve a escribir los dígitos en cifras, así que el conflicto de formato reaparece y el WER
+tampoco se puede medir automático. Y "dijo bien el número" es exactamente la afirmación que se
+publica; el WER es un rodeo que además mezcla el resto de la frase.
+
+**Qué necesita.**
+
+- **Brazo sin normalizador: nada.** La respuesta está adentro de las 220 transcripciones a oído de
+  A6, y se deriva sin escuchar un solo clip.
+- **Brazo con normalizador:** 5 frases × 4 hablantes × 1 semilla × 6 modelos = 120 clips. Pocket en
+  CPU, el resto en el servidor. Se juzgan a oído por sí o no, sin transcribir.
+- **Sintética entra como control.** Ya tiene normalizador en producción, así que tiene que irse a
+  cero. Si no se va a cero, el método está mal y se sabe antes de publicar nada.
+
+**Costo.** Diez minutos de escribir las cinco frases, una corrida de generación corta, y quince o
+veinte minutos de escucha: cinco segundos por clip, porque no hay que transcribir.
+
+**Qué significaría cada resultado.**
+- **Se arreglan los seis.** El defecto es de front-end y no del modelo acústico. La categoría deja
+  de discriminar entre modelos y pasa a ser una advertencia de integración.
+- **Se arreglan algunos.** Es el resultado más útil: separa a los que no tienen front-end de números
+  de los que además no saben decirlos.
+- **No se arregla ninguno.** El problema no es el texto de entrada sino el habla, y poner un
+  normalizador adelante deja de ser una solución.
+
+**El riesgo que la métrica binaria aísla.** El texto en palabras es más largo y puede empeorar el
+fraseo por razones que no tienen que ver con el número. Preguntando sólo por el número, eso no
+contamina el resultado.
 
 ---
 
