@@ -691,9 +691,10 @@ Whisper sobre habla sintética rioplatense y comparar otro ASR sin regenerar una
 | `sintetica` | 20/20 | **20**, que cubren sus 60 filas |
 | los otros cinco | 0/20 cada uno | 60 cada uno |
 
-**Hecho entre el 2026-11-02 y el 11-03: las 220 transcripciones.** Sintética como piloto —20 clips
+**Hecho entre el 2026-11-02 y el 11-04: las 240 transcripciones.** Sintética como piloto —20 clips
 que cubren sus 60 filas, por el audio byte-idéntico entre semillas—, una sonda de 20 de Pocket, y
-los 60 de cada uno de XTTS, Chatterbox y Qwen. Dos horas y media, treinta segundos por clip.
+los 60 de cada uno de XTTS, Chatterbox y Qwen. Dos horas y media, treinta segundos por clip. Los
+20 de Pocket 24c se sumaron el 11-04 y cierran la tabla con los seis.
 
 | modelo | WER con Whisper | WER a oído | mueve | error propio de Whisper |
 |---|---|---|---|---|
@@ -702,10 +703,16 @@ los 60 de cada uno de XTTS, Chatterbox y Qwen. Dos horas y media, treinta segund
 | Qwen3-TTS | 0.387 | **0.230** | −0.157 | 0.321 |
 | Chatterbox v3 | 0.467 | **0.395** | −0.072 | 0.298 |
 | Pocket 6c | 0.606 | **0.582** | −0.024 | 0.275 |
+| Pocket 24c | 0.631 | **0.592** | −0.039 | 0.145 |
 
 La última columna es el instrumento medido contra el oído —transcripción humana como referencia,
-Whisper como hipótesis—, y es un número que el proyecto no tenía. En Chatterbox y en Pocket no es
-error del ASR sino desacuerdo: sobre balbuceo ninguno de los dos lados es confiable.
+Whisper como hipótesis—, y **no se lee de arriba abajo: la domina el conflicto de formato.** Los
+cuatro modelos a los que Whisper les escribe dígitos quedan entre 0.225 y 0.360 de CER y los dos
+que balbucean, que no producen ninguno, en 0.164 y 0.042. Sintética aparece alto porque dice bien
+los números, no porque el ASR la oiga mal. El par Pocket es la única comparación sin ese confusor,
+y ahí 24c muestra tres veces menos desacuerdo entre transcriptores que 6c —0.070 contra 0.193 si
+se descartan las filas que el transcriptor aceptó sin editar—, que es lo que se espera de un
+balbuceo más nítido. Sobre balbuceo, de todas formas, ninguno de los dos lados es confiable.
 
 **El instrumento tenía el orden mal.** Con Whisper, Qwen le ganaba a XTTS por un pelo; a oído gana
 XTTS y por cinco puntos. Es la primera vez en el proyecto que corregir una medición da vuelta una
@@ -723,12 +730,36 @@ los 2.4 puntos están adentro del 27.5 % en que transcriptor y ASR difieren, y l
 atrapó no es un problema de números sino que Whisper **trunca el balbuceo**, que golpea a las ocho
 categorías y está en A2.
 
-**La dispersión entre semillas quedó validada como pre-test barato.** Cuánto difieren entre sí los
-tres transcripts de una misma celda se calcula gratis sobre lo que ya está en disco, y predijo los
-cuatro residuos con un par de puntos de error: 0.141 XTTS, 0.196 Qwen, 0.369 Chatterbox y 0.659
-Pocket, contra 0.177, 0.230, 0.395 y 0.582 medidos. Sintética da 0.000 y no cuenta, porque su audio
-es byte-idéntico por determinismo y no por calidad. Con esto se decide **antes** de escuchar si a un
-modelo le conviene la transcripción a oído.
+**La dispersión entre semillas ordena, y se sostiene por celda.** Cuánto difieren entre sí los tres
+transcripts de una misma celda sale gratis de lo que ya está en disco. Ordena los cuatro modelos
+igual que el oído —0.141 XTTS, 0.196 Qwen, 0.369 Chatterbox, 0.659 Pocket— y es lo único gratis que
+los ordena bien, porque el WER del ASR da vuelta XTTS y Qwen. Que los valores además den parecidos
+a los residuos medidos es casualidad de escala y no se usa. La evidencia fuerte es por celda: con
+el modelo fijo, la correlación entre dispersión y WER a oído da 0.704 en XTTS, 0.686 en Qwen y
+0.858 en Chatterbox, 0.813 sobre las 60 juntas. Adentro de un mismo modelo, las celdas que más
+varían entre semillas son las que peor salieron. Sintética queda afuera: su 0.000 es determinismo y
+no calidad. **Ordena modelos separados y no resuelve pares cercanos**: da 0.507 a Pocket 24c contra
+0.659 a 6c, quince puntos, y a oído la variante grande sale un punto peor. Ninguna medición
+indirecta separa diferencias más chicas que su propio ruido.
+
+**El mecanismo es el redondeo del ASR.** Si el habla se acerca al dígito, Whisper la escribe como el
+número correcto y las tres semillas caen en la misma escritura; si el modelo sale del dígito, no
+hay a qué redondear y las tres divergen. La dispersión no mide cuánto varía el modelo sino cuántas
+veces el habla quedó fuera del alcance de ese redondeo.
+
+| los dígitos de las 3 semillas | celdas | dispersión | WER a oído |
+|---|---|---|---|
+| las 3 iguales y correctas | 28 | 0.100 | 0.144 |
+| dos iguales y una distinta | 9 | 0.327 | 0.283 |
+| las 3 distintas entre sí | 20 | 0.419 | 0.432 |
+
+**Como filtro es asimétrico y el punto ciego tiene nombre.** Con umbral 0.05 atrapa 45 de las 48
+celdas con algo mal y no da una sola falsa alarma: si salta, hay error. Al revés no vale, y lo que
+se le escapa no es azar — **no ve el error que conserva los dígitos y pierde la verbalización**. Las
+tres celdas ciegas son la misma frase en dos modelos: `nor_003`, donde el modelo lee "veinticinco
+cero cinco dos mil veintiséis" y Whisper escribe `25.05.2026` las tres veces. Es la única de las
+cinco con palabras obligatorias entre los números; en un monto o una velocidad, si los dígitos
+están, está bien. Se usa por celda, y `nor_003` va siempre a oído.
 
 **Una semilla alcanza para la tabla.** Restringiendo a `s1234` —20 celdas por modelo en vez de 60—
 el orden sale idéntico y el valor se corre hasta cinco puntos, que es Chatterbox. Sirve para
@@ -747,9 +778,11 @@ ASR y otra medida a oído arruina las dos. `normalizacion` se publica como tabla
 método declarado al lado, que es lo que SPEC 7.6 prevé para los niveles de medición, y eso cierra
 A20: el defecto de Pocket por fin aparece en una tabla en vez de en prosa.
 
-**Lo que falta: 20 clips de Pocket 24 capas**, el único modelo sin transcribir. Diez minutos y la
-tabla tiene los seis. Las 40 filas que le faltan a Pocket 6c y las 60 de la variante grande son 50
-minutos más, y sólo hacen falta si la tabla va sobre las 60 filas. El uso de todo esto en la
+**Escalar el modelo no arregla los números.** Pocket 24c tiene cuatro veces las capas de 6c —336.1 M
+de parámetros contra 109.5 M— y da 0.592 contra 0.582 a oído: un punto. En la métrica binaria de
+A21 las dos dan 0/20. Lo que falta en las dos es el front-end de texto, no capacidad. Quedan sin
+transcribir las 40 filas de 6c y las 40 de 24c, 50 minutos, y sólo hacen falta si la tabla pasa a
+ir sobre las 60 filas. El uso de todo esto en la
 ablación con y sin normalizador está en A21.
 
 ---
