@@ -11,6 +11,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from rtb.metrics import corrections
 from rtb.metrics.corrections import DONE_COLUMN, SAID_COLUMN, Clip, Worklist, read_done
 
@@ -237,3 +239,74 @@ def test_every_committed_transcript_wrote_the_numbers_out(repo_root: Path) -> No
             assert not any(c.isdigit() for c in cells[said_at]), (
                 f"{cells[0]}: marcada como revisada pero el numero sigue en digitos"
             )
+
+
+# ── la sonda: un audio por celda ─────────────────────────────────────────────────────────────────
+
+
+def test_one_seed_keeps_one_audio_per_cell(tmp_path: Path) -> None:
+    root = a_repo(
+        tmp_path / "r",
+        {
+            "m__slr61_f_01__nor_001__s1__ref0": "a",
+            "m__slr61_f_01__nor_001__s2__ref0": "b",
+            "m__slr61_f_01__nor_001__s3__ref0": "c",
+        },
+    )
+    assert len(build(root, one_seed=["m"]).rows) == 1
+
+
+def test_one_seed_does_not_shrink_a_cell_whose_seeds_share_audio(tmp_path: Path) -> None:
+    # El descarte va despues de agrupar por hash: con tres semillas identicas la celda ya es una
+    # fila sola, y `n` tiene que seguir diciendo 3 o se pierden dos filas del grid.
+    root = a_repo(
+        tmp_path / "r",
+        {
+            "m__slr61_f_01__nor_001__s1__ref0": "a",
+            "m__slr61_f_01__nor_001__s2__ref0": "a",
+            "m__slr61_f_01__nor_001__s3__ref0": "a",
+        },
+    )
+    rows = build(root, one_seed=["m"]).rows
+    assert len(rows) == 1
+    assert rows[0].n == 3
+
+
+def test_one_seed_keeps_every_cell(tmp_path: Path) -> None:
+    root = a_repo(
+        tmp_path / "r",
+        {
+            "m__slr61_f_01__nor_001__s1__ref0": "a",
+            "m__slr61_f_01__nor_001__s2__ref0": "b",
+            "m__slr61_f_02__nor_001__s1__ref0": "c",
+        },
+    )
+    rows = build(root, one_seed=["m"]).rows
+    assert {row.speaker for row in rows} == {"slr61_f_01", "slr61_f_02"}
+
+
+def test_one_seed_picks_the_same_audio_every_time(tmp_path: Path) -> None:
+    root = a_repo(
+        tmp_path / "r",
+        {
+            "m__slr61_f_01__nor_001__s2__ref0": "b",
+            "m__slr61_f_01__nor_001__s1__ref0": "a",
+        },
+    )
+    assert build(root, one_seed=["m"]).rows[0].generation_id.endswith("s1__ref0")
+
+
+# ── no se pisa trabajo hecho ─────────────────────────────────────────────────────────────────────
+
+
+def test_a_rebuild_that_would_drop_a_transcript_raises(tmp_path: Path) -> None:
+    # Reconstruir con menos `--model` de los que tiene el archivo borraria transcripciones, y son
+    # lo unico del repo que no se puede recomputar.
+    root = a_repo(tmp_path / "r", {"m__slr61_f_01__nor_001__s1__ref0": "a"})
+    with pytest.raises(corrections.Dropped):
+        build(root, existing={"una_que_no_esta": ("lo que dije", "x")})
+
+
+def test_an_untranscribed_row_may_disappear_without_complaint(tmp_path: Path) -> None:
+    root = a_repo(tmp_path / "r", {"m__slr61_f_01__nor_001__s1__ref0": "a"})
+    assert len(build(root, models=["otro_modelo"]).rows) == 0

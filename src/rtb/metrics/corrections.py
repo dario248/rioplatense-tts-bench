@@ -27,6 +27,15 @@ from rtb.schema import GenerationRow, MetricRow
 
 logger = logging.getLogger("rtb.metrics.corrections")
 
+
+class Dropped(Exception):
+    """Rebuilding would drop transcripts already written: the one thing that cannot be redone."""
+
+    def __init__(self, shas: set[str]) -> None:
+        super().__init__(f"{len(shas)} transcripciones quedarian afuera")
+        self.shas = shas
+
+
 DEFAULT_OUT_DIR = Path("data/corrections")
 DONE_COLUMN = "revisado"
 SAID_COLUMN = "dicho"
@@ -131,6 +140,24 @@ def read_done(path: Path) -> dict[str, tuple[str, str]]:
     return out
 
 
+def models_of(path: Path, shas: set[str]) -> set[str]:
+    """Which models those rows belong to, to name them when a rebuild would drop their work."""
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    if not lines:
+        return set()
+    header = lines[0].split("\t")
+    try:
+        sha_at, model_at = header.index("audio_sha"), header.index("modelo")
+    except ValueError:
+        return set()
+    found = set()
+    for line in lines[1:]:
+        cells = line.split("\t")
+        if len(cells) > max(sha_at, model_at) and cells[sha_at] in shas:
+            found.add(cells[model_at])
+    return found
+
+
 def build(
     manifests: Sequence[Path],
     metrics_dir: Path,
@@ -139,6 +166,7 @@ def build(
     phrases_by_id: dict[str, tuple[str, str]],
     existing: dict[str, tuple[str, str]],
     root: Path,
+    one_seed: Sequence[str] = (),
 ) -> Worklist:
     """One row per distinct audio in `category`, with the ASR text as the draft to correct."""
     transcripts = {
@@ -169,6 +197,12 @@ def build(
             continue
         groups.setdefault((row.model, sha_of(wav)), []).append(row)
 
+    if one_seed:
+        # Por modelo y no global: uno sondeado con una semilla por celda convive en el mismo TSV
+        # con otros transcriptos enteros. El descarte va DESPUES de agrupar, porque si las tres
+        # semillas son el mismo audio la celda ya es una fila sola y `n` tiene que seguir en 3.
+        groups = keep_one_audio_per_cell(groups, set(one_seed))
+
     worklist = Worklist()
     for (model, sha), rows in groups.items():
         rows.sort(key=lambda r: r.generation_id)
@@ -193,7 +227,31 @@ def build(
         )
 
     worklist.rows.sort(key=lambda row: (row.model, row.phrase_id, row.speaker))
+
+    # Reconstruir con menos `--model` del que tiene el archivo borraria transcripciones hechas.
+    perdidas = set(existing) - {row.audio_sha for row in worklist.rows}
+    if perdidas:
+        raise Dropped(perdidas)
     return worklist
+
+
+def keep_one_audio_per_cell(
+    groups: dict[tuple[str, str], list[GenerationRow]],
+    models: set[str],
+) -> dict[tuple[str, str], list[GenerationRow]]:
+    """For `models`, one group per (model, speaker, phrase): the lowest `generation_id`."""
+    best: dict[tuple[str, str, str], tuple[str, tuple[str, str]]] = {}
+    kept = {}
+    for key, rows in groups.items():
+        if rows[0].model not in models:
+            kept[key] = rows
+            continue
+        head = min(row.generation_id for row in rows)
+        cell = (rows[0].model, rows[0].speaker_id, rows[0].phrase_id or "")
+        if cell not in best or head < best[cell][0]:
+            best[cell] = (head, key)
+    kept.update({key: groups[key] for _, key in best.values()})
+    return kept
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -203,6 +261,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--manifest", type=Path, action="append", required=True)
     parser.add_argument("--category", default="normalizacion")
+    parser.add_argument(
+        "--one-seed",
+        action="append",
+        default=[],
+        metavar="MODEL",
+        help="probe this model with one seed per (speaker, phrase) instead of all three; repeat",
+    )
     parser.add_argument(
         "--model",
         action="append",
@@ -236,15 +301,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     out_path = resolve(args.out) / f"{args.category}.tsv"
-    worklist = build(
-        args.manifest,
-        resolve(args.metrics),
-        args.category,
-        args.model,
-        phrases_by_id,
-        read_done(out_path),
-        root,
-    )
+    try:
+        worklist = build(
+            args.manifest,
+            resolve(args.metrics),
+            args.category,
+            args.model,
+            phrases_by_id,
+            read_done(out_path),
+            root,
+            args.one_seed,
+        )
+    except Dropped as err:
+        faltan = models_of(out_path, err.shas)
+        event(logger, "corrections_aborted", level=logging.CRITICAL, error=str(err))
+        print(f"\nABORTADO: {err}, y el TSV no se toco.")
+        print(f"Falta pasar --model y --manifest de: {', '.join(sorted(faltan)) or '?'}")
+        return 1
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(worklist.to_tsv(), encoding="utf-8")
 
