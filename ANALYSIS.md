@@ -12,21 +12,19 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-03):** 220 clips de `normalizacion` transcriptos a oído. La categoría
-  vuelve a tener números y **el instrumento tenía el orden mal**: medido con Whisper, Qwen le ganaba
-  a XTTS; a oído gana XTTS y por cinco puntos. → A6.
-- **Próximo paso: la ablación con y sin normalizador** (A21), que convierte el defecto de dígitos en
-  una recomendación y no necesita el paquete normalizador para correr. Antes van los 20 clips de
-  Pocket 24 capas que completan la tabla de A6. En paralelo, A18 y A19 son minutos cada uno, y
-  después sigue medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
-  diferencial de v1—.
-  → A21 · A6 · A18 · A19 · SPEC 7.4.
+- **Último hito (2026-11-04):** la ablación con y sin normalizador, 120 clips juzgados a oído.
+  **Un normalizador adelante arregla los números**: de 27/100 a 95/100, y Pocket de 0/20 a 20/20 en
+  las dos variantes. Quedan dos defectos que no toca, uno en Qwen y otro en Pocket. → A21.
+- **Próximo paso:** los 20 clips de Pocket 24 capas que completan la tabla de A6. En paralelo, A18 y
+  A19 son minutos cada uno, y después sigue medir la precisión de los timestamps de palabra, que
+  decide el tamaño de 7.4 —el diferencial de v1—.
+  → A6 · A18 · A19 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A6 **resuelta, falta un modelo** · ★★ A18 · A19 · A21 · ★ A7 · A8 · A9 · A17 ·
-  A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
+- **Abiertos:** ★★★ A6 **resuelta, falta un modelo** · ★★ A21 **resuelta** · A18 · A19 · ★ A7 · A8 ·
+  A9 · A17 · A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
   → §entradas.
 - **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
   similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
@@ -1666,40 +1664,52 @@ está medido en A6, sino cuál se arregla con un normalizador adelante, que es u
 producción. Convierte el defecto en una recomendación. Pocket es el caso extremo y el que más
 tiene para ganar: con dígitos emite palabras inventadas.
 
-**No necesita el paquete normalizador.** `configs/phrases.yaml` ya trae las cinco frases escritas
-en palabras desde v0, en `expected_verbalization`, que es la referencia de la métrica. Eso **es** la
-salida del normalizador, escrita a mano. Lo único que falta es menor: esa forma está sin tildes
-porque sirve para comparar y no para sintetizar, y darle "llama" en vez de "llamá" le cambia la
-acentuación al modelo. Hay que escribir las cinco con ortografía de síntesis.
+**Respondida el 2026-11-04: sí, y de 27/100 a 95/100.** Las mismas 20 celdas por modelo —5 frases
+× 4 hablantes, semilla 1234, `ref0`— juzgadas a oído por sí o no sobre el tramo numérico, que es la
+afirmación que se publica. El brazo sin normalizador se derivó de las 220 transcripciones de A6 sin
+escuchar un clip; falta `pocket_tts_es_24l`, que nunca se transcribió.
 
-**La métrica es binaria y no WER: ¿dijo bien el número, sí o no?** Dos razones. En el brazo tratado
-Whisper vuelve a escribir los dígitos en cifras, así que el conflicto de formato reaparece y el WER
-tampoco se puede medir automático. Y "dijo bien el número" es exactamente la afirmación que se
-publica; el WER es un rodeo que además mezcla el resto de la frase.
+| modelo | sin normalizador | con normalizador |
+|---|---|---|
+| pocket_tts_es | 0/20 | 20/20 |
+| pocket_tts_es_24l | — | 20/20 |
+| chatterbox_v3 | 0/20 | 20/20 |
+| xtts_v2 | 4/20 | 19/20 |
+| qwen3_tts | 4/20 | 16/20 |
+| sintetica | 19/20 | 20/20 |
 
-**Qué necesita.**
+**No hizo falta el paquete normalizador.** `expected_verbalization` ya traía las cinco frases en
+palabras desde v0, que **es** la salida del normalizador escrita a mano. Lo único que hubo que
+escribir fue la ortografía de síntesis, porque esa forma está sin tildes para comparar y darle
+"llama" en vez de "llamá" le cambia la acentuación al modelo.
 
-- **Brazo sin normalizador: nada.** La respuesta está adentro de las 220 transcripciones a oído de
-  A6, y se deriva sin escuchar un solo clip.
-- **Brazo con normalizador:** 5 frases × 4 hablantes × 1 semilla × 6 modelos = 120 clips. Pocket en
-  CPU, el resto en el servidor. Se juzgan a oído por sí o no, sin transcribir.
-- **Sintética entra como control.** Ya tiene normalizador en producción, así que tiene que irse a
-  cero. Si no se va a cero, el método está mal y se sabe antes de publicar nada.
+**El control validó el método.** Sintética, que ya tiene normalizador en producción, da 16 de 20
+clips byte-idénticos entre los dos brazos: ponerle otro adelante es una operación nula. Los cuatro
+que difieren son de `nor_005`, donde su normalizador agrupa el teléfono distinto de como lo
+escribimos, y las dos agrupaciones son alternativas aceptadas.
 
-**Costo.** Diez minutos de escribir las cinco frases, una corrida de generación corta, y quince o
-veinte minutos de escucha: cinco segundos por clip, porque no hay que transcribir.
+**El ASR no puede puntuar ninguno de los dos brazos**, y por eso la métrica es binaria y a oído.
+Whisper escribe ortografía convencional venga de donde venga el habla, así que el sesgo corre para
+los dos lados: contra la referencia hablada el brazo base da 0/20 hasta para Sintética, y contra la
+escrita el tratado paga la fecha y el teléfono. Sobre los 16 clips byte-idénticos, lo que Sintética
+dijo da 0.006 de WER y lo que Whisper escribió de ese mismo archivo da 0.173; los 0.167 de
+diferencia son del instrumento. Peor: a XTTS le asigna 0.233 cuando su propio error sobre ese audio
+es 0.417, lo que sólo puede pasar si escribe la frase correcta a partir de habla incorrecta.
 
-**Qué significaría cada resultado.**
-- **Se arreglan los seis.** El defecto es de front-end y no del modelo acústico. La categoría deja
-  de discriminar entre modelos y pasa a ser una advertencia de integración.
-- **Se arreglan algunos.** Es el resultado más útil: separa a los que no tienen front-end de números
-  de los que además no saben decirlos.
-- **No se arregla ninguno.** El problema no es el texto de entrada sino el habla, y poner un
-  normalizador adelante deja de ser una solución.
+**Dos defectos que un normalizador de números no arregla.**
 
-**El riesgo que la métrica binaria aísla.** El texto en palabras es más largo y puede empeorar el
-fraseo por razones que no tienen que ver con el número. Preguntando sólo por el número, eso no
-contamina el resultado.
+- **Qwen reagrupa lo que ya está en palabras.** Le entra "ochenta y nueve cero cero" y dice "ochenta
+  y nueve mil": 0 de 4 en el teléfono, los cuatro hablantes. Donde la forma verbalizada es a su vez
+  leíble como cantidad, escribirla en palabras no protege.
+- **Pocket no dice las siglas.** Se come "IVA" en los cuatro y dice "afipí" donde va AFIP, en las
+  dos variantes. Ya fallaba en el brazo base, tapado por el número.
+
+**Los seis huecos internos de habla son todos de XTTS**, de 0.78 a 4.18 s, y los otros cinco modelos
+no tienen ninguno. El peor dura 8.17 s contra 3 a 4.8 del resto en la misma frase, con el número
+bien dicho. Nada lo mide: A13 cubre la cola posterior al habla, no el corte en el medio.
+
+**Dónde quedó.** `data/corrections/verbalizacion.tsv`, `configs/phrases_ablation.yaml`,
+`data/manifests/*_norm.jsonl`, `data/metrics_ablation/` y `scripts/build_verbalization_sheet.py`.
 
 ---
 
