@@ -32,6 +32,7 @@ of the same speaker, above the weakest real same-speaker pair.
 | | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética † | Pocket TTS 6L ‖ | Pocket TTS 24L ‖ |
 |---|---|---|---|---|---|---|
 | **speaker identity** (scaled, floor 0 → ceiling 1) | 0.642 | **0.848** | 0.815 | 0.601 ‡ | 0.340 | 0.389 |
+| the same, against the model's own codec ceiling | — ¤ | — ¤ | — ¤ | — ¤ | **0.460** | **0.525** |
 | raw cosine, p50 | 0.586 | 0.725 | 0.703 | 0.559 | 0.384 | 0.417 |
 | **WER**, mean / p95 | 0.106 / 0.500 | **0.011** / 0.100 | 0.093 / 0.333 | 0.056 / 0.400 | 0.056 / 0.286 | 0.063 / 0.222 |
 | CER, mean | 0.078 | **0.004** | 0.111 | 0.027 | 0.038 | 0.037 |
@@ -56,6 +57,14 @@ device and returns on CPU; the GPU is reached by moving the module by hand, so t
 on CPU and the GPU column is left without a published figure. It was measured all the same, as
 verification rather than as a row, under *Cost*. The two variants differ only in transformer depth:
 6 layers and 109.5 M parameters against 24 layers and 336.1 M.
+
+¤ **The codec costs 0.172 of ceiling, and only Pocket's could be measured.** Passing the *real*
+control clips through Mimi — encode and decode, no synthesis — drops the ceiling from 0.827 to
+0.655 while the floor does not move (0.155 → 0.153): it costs identity, not intelligibility, and by
+ear the speaker is still recognizable, only duller. The second row rescales Pocket against that
+ceiling, which is the best a perfect clone could score through the codec. **The em-dashes are the
+caveat, not a zero**: the other four decode through a vocoder too, but theirs is not separable and
+went unmeasured, so the correction favours Pocket.
 
 ¶ The library executes `torch.set_num_threads(1)` at import, which overrides `OMP_NUM_THREADS`.
 Raising it afterwards changes nothing — measured at 1, 4 and 8 threads — so the figure is published
@@ -84,7 +93,8 @@ clip of the same speaker, each v0 zero-shot model drops 0.027 to 0.035 of raw co
 subtracted**, because cloning from that prompt is the question this benchmark asks. The three carry
 it almost equally, so the order between them does not depend on it; the absolute number does. The
 second clip was not run for Pocket TTS, so its 0.340 and 0.389 carry an unmeasured share of the
-same effect — which would make them lower, not higher. Why it cannot be speaker identity, and how
+same effect — which would make them lower, not higher. The codec ceiling below pulls those same two
+numbers the other way, and neither correction is folded into the published figure. Why it cannot be speaker identity, and how
 the effect splits between prompt and target, is in [`ANALYSIS.md`](ANALYSIS.md) (A10).
 
 **WER is published next to a real-audio floor.** The same ASR over 12 real recordings of these

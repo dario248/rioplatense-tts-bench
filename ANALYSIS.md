@@ -12,20 +12,20 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-04):** la ablación con y sin normalizador, y la tabla de `normalizacion`
-  cerrada con los seis modelos. **Un normalizador adelante arregla los números**: de 27/120 a
-  115/120, y Pocket de 0/20 a 20/20 en las dos variantes. Escalar el modelo no lo arregla.
-  → A21 · A6.
-- **Próximo paso: rearmar el README**, que todavía declara la categoría como no medible. A18 y A19
-  son minutos cada uno, y después sigue medir la precisión de los timestamps de palabra, que decide
-  el tamaño de 7.4 —el diferencial de v1—.
-  → README · A18 · A19 · SPEC 7.4.
+- **Último hito (2026-11-05):** **el códec de Pocket se come un quinto de la identidad.** Medido
+  sobre audio real: el techo cae de 0.827 a 0.655 y el piso no se mueve. Su fila pasa de 0.390 a
+  0.525 contra el techo que le corresponde, y la distancia a XTTS de 0.30 a 0.12. → A19.
+- **Próximo paso: publicar las dos cifras de similitud de Pocket** en el README, con la salvedad de
+  que los otros cinco vocoders quedaron sin medir. Después A18, que es la misma pregunta sobre
+  Sintética, y medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
+  diferencial de v1—.
+  → README · A18 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A6 **resuelta** · ★★ A21 **resuelta** · A18 · A19 · ★ A7 · A8 · A9 · A17 · A20 ·
-  A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
+- **Abiertos:** ★★★ A6 **resuelta** · ★★ A21 **resuelta** · A19 **resuelta** · A18 · ★ A7 · A8 ·
+  A9 · A17 · A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
   → §entradas.
 - **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
   similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
@@ -1620,8 +1620,10 @@ que hay que resolver es invocar el vocoder solo, sin el modelo acústico, en `.v
 - **Algo intermedio.** Se publica el techo al lado de la fila, que es lo que ya se hace con el techo
   corto para enunciados cortos.
 
-**La salvedad que esta entrada no puede sacarse de encima.** Los tres zero-shot también tienen
-vocoder y también pagan lo suyo, así que el control riguroso sería un techo por modelo. No es
+**La salvedad que esta entrada no puede sacarse de encima, y que A19 volvió concreta.** Medido en
+Pocket, el códec cuesta 0.172 de techo: la salvedad ya no es hipotética, es el tamaño de lo que los
+otros vocoders pagan sin que nadie lo sepa. Los tres zero-shot también tienen vocoder y también
+pagan lo suyo, así que el control riguroso sería un techo por modelo. No es
 factible igual de barato: en Sintética el vocoder es un componente separable y en los otros tres
 está enredado con el acústico. Si se mide, se mide para uno y se declara que los otros no.
 
@@ -1650,19 +1652,54 @@ escala— se achica, y el modelo pasa de descartado a candidato con reservas.
 - **No es sólo los enunciados cortos.** Concentran 39 de las 60 filas al nivel del piso y su escala
   es **−0.070**, debajo del piso, pero sacarlos deja el déficit casi entero.
 
-**Por qué el canal es sospechoso.** Es la misma pregunta que A18 le hace a Sintética, y en este
-proyecto ECAPA ya castigó el canal dos veces. Pocket decodifica con Mimi a 24 kHz, un códec neural
-de 12.5 cuadros por segundo: es la tubería más angosta de las seis y ninguno de los otros cinco
-pasa por una igual.
+**Respondida el 2026-11-05: una parte grande es el canal.** Pocket decodifica con Mimi a 24 kHz, un
+códec neural de 12.5 cuadros por segundo, la tubería más angosta de las seis. Pasando los
+`control_clips` **reales** por ese códec —encodear a latente y decodear, sin sintetizar nada— y
+midiendo con la geometría de la métrica publicada, que enfrenta una referencia limpia contra audio
+que salió del códec:
 
-**Qué necesita.** Lo mismo que A18: pasar los `control_clips` **reales** por el códec —encodear y
-decodear sin sintetizar— y volver a medir el coseno contra el original. El delta sobre audio real
-es exactamente el costo del canal, sin modelo de por medio. Corre en `.venv-pocket` más
-`.venv-simil`, son minutos y no necesita GPU.
+| | limpio | por Mimi | cae |
+|---|---|---|---|
+| techo (mismo hablante, otro texto) | 0.827 | 0.655 | −0.172 |
+| piso (otro hablante, mismo texto) | 0.155 | 0.153 | −0.002 |
 
-**Qué significaría cada resultado.** Si el delta sobre audio real es ≥ 0.1 de escala, una parte del
-déficit es instrumento y hay que publicar las dos cifras. Si es despreciable —como dio el watermark
-en A12— entonces 0.340 es el modelo clonando, y es un resultado y no un artefacto.
+Resamplear a 24 kHz no cuesta nada —coseno 1.0000 exacto en los ocho clips—, así que lo que cae es
+el códec y nada más.
+
+**El techo de Pocket no es 0.827, y su fila se lee contra otro.**
+
+| modelo | escala publicada | contra el techo por Mimi |
+|---|---|---|
+| Pocket 6c | 0.341 | **0.460** |
+| Pocket 24c | 0.390 | **0.525** |
+| XTTS-v2 (no pasa por Mimi) | 0.641 | 0.641 |
+
+La distancia a XTTS pasa de 0.30 a 0.12 de escala. Supera de largo el umbral de 0.1 que esta
+entrada fijó antes de medir, así que **se publican las dos cifras**: el modelo sigue último y deja
+de estar en otra categoría.
+
+**Que el piso no se mueva es lo que hace sólido el resultado.** Un códec que destruyera la señal
+habría acercado también a dos hablantes distintos, y el efecto sería del embedder perdiendo
+resolución. Mimi aleja a una persona de sí misma y deja el piso donde estaba: se come identidad,
+no inteligibilidad.
+
+**A oído, la misma persona, apagada.** Ocho pares del mismo clip sin y con códec. El espectro
+coincide con esa descripción: atenuación progresiva, −0.9 dB abajo de 500 Hz y −6.6 dB entre 6 y
+8 kHz. **Que esa inclinación sea el mecanismo no está mostrado** —clip a clip la atenuación no
+predice la caída del coseno y el signo sale invertido (r = 0.525 con n = 8; los dos clips más
+atenuados son los que menos identidad pierden)—, así que se afirman las dos cosas por separado.
+
+**El número detecta y no gradúa.** La caída va de 0.194 a 0.275 entre clips, y esa diferencia no se
+oye ni se explica. Se publica el promedio, no el rango.
+
+**La salvedad, que ahora pesa más que en A18.** Los otros cinco modelos también decodifican con un
+vocoder y también pagan lo suyo, pero el suyo no es separable y quedó sin medir. Publicar el techo
+corregido de Pocket sin el de ellos **favorece a Pocket**, y eso va escrito al lado de las dos
+cifras. Lo que el resultado vuelve concreto es más general que Pocket: ECAPA cobra un quinto de la
+identidad a cualquier modelo que decodifique con un códec neural, y ninguna de las seis filas
+declara cuánto paga el suyo.
+
+**Dónde quedó.** `scripts/codec_ceiling.py` reproduce las dos tablas desde los `control_clips`.
 
 ---
 
