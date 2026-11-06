@@ -24,12 +24,12 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A6 **resuelta** · ★★ A21 **resuelta** · A19 **resuelta** · A18 · ★ A7 · A8 ·
-  A9 · A17 · A20 · A11 **diferida**. Ninguna mueve un número ya publicado; A18 y A19 cambian cómo se lee uno.
+- **Abiertos:** ★★ A18 · ★ A7 · A8 · A9 · A17 · A11 **diferida**. Resueltas en noviembre: A6, A19,
+  A20 y A21. Ninguna de las abiertas mueve un número ya publicado; A18 cambia cómo se lee uno.
   → §entradas.
-- **Pendiente de medir:** de Pocket, el TTFB en streaming (A9) y el costo del códec sobre la
-  similitud (A19). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae su costo
-  escrito.
+- **Pendiente de medir:** el TTFB en streaming, que hoy no existe en ningún modelo (A9), y el techo
+  del vocoder de Sintética (A18). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae
+  su costo escrito.
 
 ---
 
@@ -1721,7 +1721,9 @@ lleva la advertencia en prosa. Hoy la lleva en prosa.
 
 **Decidido el 2026-11-03: sale de la prosa.** `normalizacion` se publica como tabla propia medida a
 oído (A6), y la ablación con y sin normalizador (A21) convierte el defecto en una recomendación.
-Esta entrada se cierra cuando la tabla esté en el README.
+
+**Cerrada el 2026-11-04.** La tabla está en el README, con los seis modelos y la ablación al lado.
+El defecto de Pocket ya no depende de que alguien lea un párrafo.
 
 ---
 
