@@ -32,7 +32,7 @@ of the same speaker, above the weakest real same-speaker pair.
 | | XTTS-v2 | Qwen3-TTS | Chatterbox v3 | Sintética † | Pocket TTS 6L ‖ | Pocket TTS 24L ‖ |
 |---|---|---|---|---|---|---|
 | **speaker identity** (scaled, floor 0 → ceiling 1) | 0.642 | **0.848** | 0.815 | 0.601 ‡ | 0.340 | 0.389 |
-| the same, against the model's own codec ceiling | — ¤ | — ¤ | — ¤ | — ¤ | **0.460** | **0.525** |
+| the same, against the model's own decoder ceiling | — ¤ | — ¤ | — ¤ | **0.727** | **0.460** | **0.525** |
 | raw cosine, p50 | 0.586 | 0.725 | 0.703 | 0.559 | 0.384 | 0.417 |
 | **WER**, mean / p95 | 0.106 / 0.500 | **0.011** / 0.100 | 0.093 / 0.333 | 0.056 / 0.400 | 0.056 / 0.286 | 0.063 / 0.222 |
 | CER, mean | 0.078 | **0.004** | 0.111 | 0.027 | 0.038 | 0.037 |
@@ -49,7 +49,8 @@ of the same speaker, above the weakest real same-speaker pair.
 † **Sintética is not a zero-shot model and does not compete.** It is a fine-tune that picks a voice
 by id, and it is in the table because it shares the four speakers, the scale and the instrument.
 ‡ Its similarity is measured against audio that was in its training set, so it is an **upper
-bound**, not a comparable score. § With a process restart every 27 syntheses; the same grid in one
+bound**, not a comparable score. That pushes the figure up and the decoder ceiling below pushes it
+down; neither is folded into it. § With a process restart every 27 syntheses; the same grid in one
 process drifts to 0.936. Both numbers are real and the difference is explained below.
 
 ‖ **Pocket TTS is a v1 model, and CPU is the device its authors support.** `load_model` takes no
@@ -58,13 +59,15 @@ on CPU and the GPU column is left without a published figure. It was measured al
 verification rather than as a row, under *Cost*. The two variants differ only in transformer depth:
 6 layers and 109.5 M parameters against 24 layers and 336.1 M.
 
-¤ **The codec costs 0.172 of ceiling, and only Pocket's could be measured.** Passing the *real*
-control clips through Mimi — encode and decode, no synthesis — drops the ceiling from 0.827 to
-0.655 while the floor does not move (0.155 → 0.153): it costs identity, not intelligibility, and by
-ear the speaker is still recognizable, only duller. The second row rescales Pocket against that
-ceiling, which is the best a perfect clone could score through the codec. **The em-dashes are the
-caveat, not a zero**: the other four decode through a vocoder too, but theirs is not separable and
-went unmeasured, so the correction favours Pocket.
+¤ **What each model's own decoder costs, where it could be measured.** Passing the *real* control
+clips through the decoder alone — Pocket's Mimi codec, Sintética's HiFiGAN fed the mel of the clip,
+no synthesis either way — drops the ceiling from 0.827 to **0.655** for Mimi and to **0.722** for
+HiFiGAN. By ear the speaker stays recognizable through both. The second row rescales each measured
+model against its own ceiling, which is the best a perfect clone could score through it, so **read
+that row vertically against the figure above it, never across**. The em-dashes are the caveat, not
+a zero: XTTS, Qwen and Chatterbox decode through a vocoder too, but theirs is not separable from
+the acoustic model and went unmeasured. The one reordering the correction produces — Sintética
+above XTTS — is for that reason not a result: XTTS would rise too if its own were measured.
 
 ¶ The library executes `torch.set_num_threads(1)` at import, which overrides `OMP_NUM_THREADS`.
 Raising it afterwards changes nothing — measured at 1, 4 and 8 threads — so the figure is published

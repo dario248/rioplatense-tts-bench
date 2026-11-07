@@ -12,24 +12,24 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-05):** **el códec de Pocket se come un quinto de la identidad.** Medido
-  sobre audio real: el techo cae de 0.827 a 0.655 y el piso no se mueve. Su fila pasa de 0.390 a
-  0.525 contra el techo que le corresponde, y la distancia a XTTS de 0.30 a 0.12. → A19.
-- **Próximo paso: publicar las dos cifras de similitud de Pocket** en el README, con la salvedad de
-  que los otros cinco vocoders quedaron sin medir. Después A18, que es la misma pregunta sobre
-  Sintética, y medir la precisión de los timestamps de palabra, que decide el tamaño de 7.4 —el
-  diferencial de v1—.
-  → README · A18 · SPEC 7.4.
+- **Último hito (2026-11-06):** **medir la similitud a través del decoder de cada modelo cambia
+  tres filas de seis.** El códec de Pocket cuesta 0.172 de techo y el vocoder de Sintética 0.105,
+  medidos sobre audio real. Pocket 24c pasa de 0.390 a 0.525 y Sintética de 0.601 a 0.727. Los
+  otros tres decoders no son separables y quedaron sin medir. → A19 · A18.
+- **Próximo paso: medir la precisión de los timestamps de palabra**, que decide el tamaño de la
+  métrica de acento (SPEC 7.4) —el diferencial de v1 y lo único que el benchmark promete y no
+  mide—. Lo que queda abierto además es afinado, con su costo escrito en cada entrada.
+  → SPEC 7.4 · §entradas.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★ A18 · ★ A7 · A8 · A9 · A17 · A11 **diferida**. Resueltas en noviembre: A6, A19,
-  A20 y A21. Ninguna de las abiertas mueve un número ya publicado; A18 cambia cómo se lee uno.
+- **Abiertos:** ★★ A11 **diferida** · ★ A7 · A8 · A9 · A17. Resueltas en noviembre: A6, A18, A19,
+  A20 y A21. Ninguna de las abiertas mueve un número ya publicado.
   → §entradas.
 - **Pendiente de medir:** el TTFB en streaming, que hoy no existe en ningún modelo (A9), y el techo
-  del vocoder de Sintética (A18). Lo que queda para v1 está en SPEC 2, y cada entrada abierta trae
-  su costo escrito.
+  del decoder de XTTS, Chatterbox y Qwen, que no son separables del acústico y hoy son tres guiones
+  en la tabla (A18). Lo que queda para v1 está en SPEC 2.
 
 ---
 
@@ -1603,29 +1603,47 @@ cota **superior** porque se mide contra audio de entrenamiento. Ésta dice que a
 subestimado por el vocoder. Las dos a la vez significan que el 0.601 no acota nada hasta que se
 sepa cuánto pesa cada efecto, y hoy se publica como la cifra más baja de las cuatro.
 
-**Qué necesita: copy-synthesis, que es un techo nuevo.** Pasar el clip de referencia **real** por el
-vocoder de Sintética —sin cambiar de hablante, sin sintetizar texto— y medir ese coseno contra el
-original. Es exactamente la misma idea que el techo corto: mismo hablante, mismo contenido, misma
-cadena de señal, y lo único que varía es lo que se quiere aislar.
+**Respondida el 2026-11-06: el vocoder cuesta 0.105 de techo, y el 0.601 pasa a 0.727.**
+Copy-synthesis sobre los clips de control **reales** —el mel que extrae el `AudioProcessor` del
+vocoder, HiFiGAN, sin modelo acústico y sin texto—, medido con la geometría de la métrica
+publicada. Los dos configs de audio, el de FastPitch y el del vocoder, son idénticos en los 32
+parámetros y `signal_norm` está en `False`, así que no hay normalización que pueda estar mal
+aplicada entre uno y otro.
 
-**Costo.** Cuatro clips, uno por hablante, y cuatro cosenos. Minutos, sin reentrenar nada. Lo único
-que hay que resolver es invocar el vocoder solo, sin el modelo acústico, en `.venv-sintetica`.
+| | limpio | por el vocoder | cae |
+|---|---|---|---|
+| techo (mismo hablante, otro texto) | 0.827 | **0.722** | −0.105 |
+| piso (otro hablante, mismo texto) | 0.155 | 0.126 | −0.029 |
 
-**Qué significaría cada resultado.**
-- **Techo ≈ 0.60.** Sintética está *en* el techo de su propio vocoder: el número publicado mide
-  fidelidad y no clonado, y su fila necesita esa escala propia al lado o deja de decir lo que
-  parece decir.
-- **Techo ≈ 0.80**, cerca del techo real de 0.827. El vocoder no es el problema y el 0.601 es
-  identidad: se publica como está.
-- **Algo intermedio.** Se publica el techo al lado de la fila, que es lo que ya se hace con el techo
-  corto para enunciados cortos.
+Contra ese techo, el 0.601 de Sintética es **0.727**. Es el tercero de los tres escenarios que esta
+entrada preveía: ni el vocoder lo explica todo ni es inocente, así que **el techo se publica al
+lado de la fila**, como ya se hace con el techo corto para `enunciados_cortos`.
 
-**La salvedad que esta entrada no puede sacarse de encima, y que A19 volvió concreta.** Medido en
-Pocket, el códec cuesta 0.172 de techo: la salvedad ya no es hipotética, es el tamaño de lo que los
-otros vocoders pagan sin que nadie lo sepa. Los tres zero-shot también tienen vocoder y también
-pagan lo suyo, así que el control riguroso sería un techo por modelo. No es
-factible igual de barato: en Sintética el vocoder es un componente separable y en los otros tres
-está enredado con el acústico. Si se mide, se mide para uno y se declara que los otros no.
+**El mecanismo está medido, al revés que en A19.** El defecto es ruido de banda ancha agregado
+sobre voz sonora: la planitud espectral de los cuadros con habla sube **×1.31** de media y el nivel
+de salida queda **+5 dB** parejo en todas las bandas, sin que ninguna domine. No es inclinación
+espectral, y está entero por debajo de 8 kHz —el Nyquist de ECAPA a 16 kHz—, así que el embedder ve
+toda la distorsión. A oído se reconoce a la misma persona con el ruido característico del vocoder.
+
+**Por eso acá el piso se mueve y en A19 no.** Ruido agregado a dos hablantes distintos los acerca
+un poco (−0.029); el códec de Pocket, que inclina el espectro, dejaba el piso quieto (−0.002). Dos
+defectos distintos dejan dos firmas distintas, y la del piso los separa.
+
+**Lo que se pierde es la cadena de señal, no la identidad del modelo.** El copy-synthesis le da al
+vocoder el mel **real**, el mejor posible, y aun así distorsiona: el modelo acústico no participa
+de la prueba. Los 0.105 cuelgan del decoder, así que cambiarlo movería la fila sin tocar cómo
+Sintética representa la voz.
+
+**El nivel no contamina la medición.** La salida queda +5 dB por encima de la entrada, sin una sola
+muestra recortada —picos por debajo de 0.97—, y C4 midió que ECAPA da coseno exactamente 1.0 sobre
+el mismo clip escalado ±6 dB.
+
+**La salvedad, ahora con las dos mitades medidas.** Con A19, tres de las seis filas tienen techo
+propio —Sintética y las dos variantes de Pocket— y tres no: XTTS, Chatterbox y Qwen también
+decodifican con un vocoder y también pagan lo suyo, pero el suyo no es separable del acústico y no
+se mide igual de barato. Las dos medidas dan 0.105 y 0.172, así que lo que los otros tres pagan no
+es despreciable por defecto. **La corrección favorece a quien se pudo medir**, y eso va declarado
+al lado de las cifras.
 
 **De dónde salió:** de escuchar los samples, el 2026-09-19. Ninguna métrica lo insinuó.
 
