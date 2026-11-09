@@ -12,21 +12,21 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-09):** **el atajo sobre el que se diseñó la métrica de acento no se
-  sostiene.** El timestamp de palabra está corrido −101 ms de mediana, más que la consonante que
-  7.4 quiere medir, y a ciegas el alineador forzado le gana 8 de 8. El inicio del segmento se
-  resuelve alineando; el final sigue sin resolverse. → A22.
-- **Próximo paso: decidir cómo se delimita el final del segmento**, que es lo único que falta para
-  poder construir la distribución de referencia de 7.4 y con ella la métrica de acento —el
-  diferencial de v1—. SPEC 5.1 y 7.4 describen un diseño que A22 refuta y hay que reescribirlos.
-  → A22 · SPEC 5.1 · SPEC 7.4.
+- **Último hito (2026-11-09):** **la métrica de acento se rediseñó entera.** El timestamp de
+  palabra está corrido −101 ms y lo reemplaza un alineador forzado (A22); el rehilamiento resultó
+  un continuo y no un sí/no, así que el umbral se cae y en su lugar va el percentil contra 548
+  instancias de los 44 hablantes del corpus (A23). → A22 · A23.
+- **Próximo paso: reescribir SPEC 5.1 y 7.4** con el diseño nuevo —alineación forzada, pico sobre
+  los 100 ms del arranque, percentil contra el hablante clonado— y recién después el script. La
+  rótica queda sin métrica: ningún rasgo la separa. → A23 · SPEC 5.1 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
-  su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★★ A22 **mide y refuta; falta rehacer el diseño** · ★★ A11 **diferida** · ★ A7 ·
-  A8 · A9 · A17. Resueltas en noviembre: A6, A18, A19, A20 y A21. Ninguna abierta mueve un número
-  ya publicado: A22 mueve una métrica que todavía no existe.
+  su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1 · A24.
+- **Abiertos:** ★★★ A22 y A23 **miden y refutan; falta reescribir el SPEC** · ★★ A24 **decidida,
+  falta la nota** · ★★ A11 **diferida** · ★ A7 · A8 · A9 · A17. Resueltas en noviembre: A6, A18,
+  A19, A20 y A21. Ninguna abierta mueve un número ya publicado: las tres nuevas mueven una métrica
+  que todavía no existe.
   → §entradas.
 - **Pendiente de medir:** el TTFB en streaming, que hoy no existe en ningún modelo (A9), y el techo
   del decoder de XTTS, Chatterbox y Qwen, que no son separables del acústico y hoy son tres guiones
@@ -1871,6 +1871,123 @@ construir, porque recortar esos segmentos necesitaba exactamente esto.
 que hoy no se reproducen. El alineador va a terminar adentro del pipeline de la métrica, y
 escribirlo antes de cerrar cómo se calcula el segmento sería escribirlo dos veces. Entra cuando el
 diseño esté cerrado; hasta entonces, la entrada vale por la medición y no por la trazabilidad.
+
+---
+
+## A23 ★★★ — El rehilamiento es un continuo, no un sí/no, y el umbral reprobaba hablantes reales
+
+**Pregunta.** ¿El rasgo acústico que separa yeísmo rehilado de no rehilado sirve como test de
+pasa/no pasa, y dónde va el corte?
+
+**Por qué importa.** La métrica de acento es el diferencial de v1 y así como estaba diseñada da una
+tasa de aciertos: en qué fracción de las instancias el modelo realiza el fonema. Esa tasa necesita
+un umbral, y un umbral mal puesto no mide al modelo, mide la línea.
+
+**Respondida el 2026-11-09: no sirve como sí/no, y el corte en 0 dB era malo.**
+
+**El rasgo.** Pico de `10·log10(E>2.5 kHz / E<1 kHz)` sobre ventanas de 25 ms con paso de 5 ms, en
+los 100 ms posteriores al arranque que marca el alineador forzado. No necesita el final del
+segmento, así que lo que A22 dejó sin resolver no bloquea al yeísmo —sí a la rótica, donde el rasgo
+directamente no separa: los picos caen sobre la /s/ siguiente, 24 de 24 en «Rosario» y 24 de 24 en
+«Recién»—.
+
+**Primero pareció un detector binario.** Dentro de cada modelo y a ciegas: donde el rasgo supera 0
+dB, 10 de 10 se oyen rehiladas; donde no, 5 de 5 se parten por mitades. O sea que el valor alto
+acierta y el bajo no informa, que es la firma de un umbral puesto adentro de una rampa y no de un
+detector.
+
+**El test de gradiente lo confirmó.** Pidiendo intensidad de 1 a 5 en vez de sí/no sobre 20
+instancias sintéticas: **Pearson 0.787, Spearman 0.770** contra los dB medidos. El rasgo ordena por
+intensidad; nunca estuvo detectando presencia.
+
+**La distribución de referencia.** 548 instancias de `<ll>` y `<y>` inicial o intervocálica sobre
+los 44 hablantes argentinos del corpus:
+
+| | dB |
+|---|---|
+| p05 | −10.4 |
+| p10 | −2.3 |
+| p25 | +14.4 |
+| mediana | **+21.6** |
+| p75 | +26.4 |
+| p95 | +33.2 |
+
+Un solo modo dominante entre +20 y +30, con cola hacia abajo. **No hay tres grupos separados**, que
+es lo que haría falta para que un corte binario tuviera dónde apoyarse. Por hablante las medianas
+van de −11.0 (`arm_05223`) a +29.4 (`arf_01523`).
+
+**La cola de abajo es rehilamiento suave, no ausencia.** 20 clips de audio real de los tres
+hablantes más bajos y los dos más altos, juzgados de 1 a 5: Pearson 0.717, Spearman 0.836. El caso
+que decide es `arf_05679`, **cuatro instancias, las cuatro con 4 sobre 5, las cuatro entre −11 y 0
+dB**: una hablante que rehíla siempre y que el umbral descarta entera. `arm_05223` es el único
+realmente dudoso —1, 2, 3 y 4— y adentro de él el rasgo se invierte: el 4 está en −17 dB y el 1 en
+−6.
+
+**El costo del umbral, medido.** 0 dB reprueba el **11.7 %** del habla argentina real del corpus.
+Para no perder a `arf_05679` habría que bajarlo a −12 dB, y ahí pasa casi cualquier cosa.
+
+**Lo que el rasgo sí hace bien.** Ninguna instancia arriba de +7 dB bajó de 4 sobre 5, y ninguna
+juzgada 5 midió menos de +7. No da falsos positivos: el valor alto es evidencia, el bajo no.
+
+**El sexo no lo confunde.** Mujeres +22 de mediana, varones +21; por medianas de hablante +21.4
+contra +22.1; y el hablante más bajo de los 44 es varón. El rasgo es un cociente entre dos bandas
+del mismo fragmento, así que una voz más brillante sube las dos.
+
+**Cómo queda la métrica.** Mediana de varias instancias por celda, leída contra la distribución de
+referencia, sin umbral. El número que se reporta es **la diferencia contra el hablante que esa celda
+estaba clonando**, porque el objetivo del clonado es esa persona y no la mediana poblacional; la
+escalera de los 44 sirve para interpretar cuánto significa esa diferencia. Los cuatro hablantes de
+referencia caen entre el percentil 49 y el 74, todos arriba de la mediana, así que no hay que
+corregir por una referencia floja. Que estén adentro de la escalera casi no la mueve: 55 de 548
+instancias, y sacarlos corre la mediana de las medianas de +20.6 a +19.7 dB.
+
+**Por qué una sola instancia no alcanza.** `arf_03853` va de +7 a +21 dB entre sus cuatro
+instancias, misma sesión y mismo hablante, y a oído las cuatro se oyen rehiladas. Sobre un rango
+angosto el ruido domina: el rasgo ordena entre hablantes, no adentro de uno.
+
+**Límites de lo medido.** La escucha de audio real son 20 instancias de 5 hablantes, y la de
+gradiente otras 20 sintéticas, las dos del mismo oyente y ninguna a ciegas respecto del valor
+medido —se buscaba entender la cola, no validar—. El corpus es argentino declarado, no porteño
+verificado. Cuántas instancias por celda hacen falta para que la mediana sea estable está sin medir.
+
+**Qué queda.** Reescribir SPEC 5.1 y 7.4 con la métrica de percentil. La rótica sigue sin rasgo que
+la separe y hoy no tiene métrica. Falta el script: vale lo mismo que en A22, entra cuando el diseño
+cierre.
+
+---
+
+## A24 ★★ — Los clips de referencia casi no contienen el fonema que medimos
+
+**Pregunta.** ¿Los clips que se le pasan al modelo como referencia de voz traen el rasgo dialectal
+que después le medimos?
+
+**Por qué importa.** Si un modelo falla el yeísmo clonando a un hablante cuyo prompt no lo contiene,
+no se sabe si es que no lo sabe hacer o que no tuvo de dónde copiarlo. Confunde la métrica de acento
+con la cobertura fonémica del prompt.
+
+**Respondida el 2026-11-09: casi no lo traen.** Sitios reales de rehilamiento en los ocho
+`ref_clips`, descartando las `y` semivocales de coda —*hay*, *muy*, *estoy*, *voy*, la conjunción
+*y*—, que no se rehílan:
+
+| clip | `ref_00` | `ref_01` |
+|---|---|---|
+| `slr61_f_01` | *mayoría* | *llegues* |
+| `slr61_f_02` | *ayudás* | — |
+| `slr61_m_01` | — | *pantalla* |
+| `slr61_m_02` | — | — |
+
+**Dos de los ocho clips no tienen ninguno y ninguno tiene más de uno.** `slr61_m_02` no lo tiene en
+ninguno de sus dos clips: el modelo nunca oye el rasgo en ese prompt.
+
+**Decidido: se declara como limitación y los clips no se tocan.** Las tres salidas eran declararlo,
+cambiar los `source_utterances` por otros que cubran el rasgo, o medir igual contra la mediana del
+hablante. Cambiar los clips obliga a regenerar las cuatro dimensiones de todo el grid en los seis
+modelos, y el supuesto que habilita la tercera —que el clonado captura el idiolecto y no sólo los
+fonos presentes en el prompt— es justamente una de las cosas que el benchmark puede testear. Se mide
+contra la mediana del hablante, con la cobertura declarada al lado.
+
+**Qué queda.** La nota de cobertura en SPEC 5.1 y en la tabla publicada de la métrica de acento. Si
+un modelo rinde distinto en `slr61_m_02` que en el resto, hay que leerlo con esto a la vista.
 
 ---
 
