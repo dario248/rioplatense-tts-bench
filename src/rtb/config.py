@@ -33,9 +33,7 @@ CONCATENATION_GAP_S = 0.25
 #   sim_*: la categoria s_implosiva se retiro de v0 (ver PhraseCategory).
 DEPRECATED_PHRASE_IDS = frozenset({"sim_001", "sim_002", "sim_003", "sim_004"})
 
-# Grafemas que en posicion inicial de palabra son siempre el fonema objetivo. La restriccion de
-# SPEC 5.1 es esa posicion inicial: así el timestamp de palabra de WhisperX marca el inicio del
-# segmento a medir y no hace falta montar un alineador forzado (MFA).
+# Grafemas que en posicion inicial de palabra son siempre el fonema objetivo (SPEC 5.1).
 _YEISMO_ONSETS = ("ll", "y")
 _RHOTIC_ONSET = "r"
 # La conjuncion "y" aislada es la vocal [i], no la fricativa: nunca se marca.

@@ -16,15 +16,16 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
   palabra está corrido −101 ms y lo reemplaza un alineador forzado (A22); el rehilamiento resultó
   un continuo y no un sí/no, así que el umbral se cae y en su lugar va el percentil contra 548
   instancias de los 44 hablantes del corpus (A23). → A22 · A23.
-- **Próximo paso: reescribir SPEC 5.1 y 7.4** con el diseño nuevo —alineación forzada, pico sobre
-  los 100 ms del arranque, percentil contra el hablante clonado— y recién después el script. La
-  rótica queda sin métrica: ningún rasgo la separa. → A23 · SPEC 5.1 · SPEC 7.4.
+- **Próximo paso: el script de la métrica de acento**, que es lo único que falta: SPEC 5.1 y 7.4 ya
+  describen el diseño nuevo —alineación forzada, pico sobre los 100 ms del arranque, percentil
+  contra el hablante clonado—. La rótica queda sin métrica: ningún rasgo la separa.
+  → A23 · SPEC 5.1 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1 · A24.
-- **Abiertos:** ★★★ A22 y A23 **miden y refutan; falta reescribir el SPEC** · ★★ A24 **decidida,
-  falta la nota** · ★★ A11 **diferida** · ★ A7 · A8 · A9 · A17. Resueltas en noviembre: A6, A18,
+- **Abiertos:** ★★★ A22 y A23 **medidas y bajadas al SPEC; falta el script** · ★★ A11 **diferida** ·
+  ★ A7 · A8 · A9 · A17. A24 cerrada. Resueltas en noviembre: A6, A18,
   A19, A20 y A21. Ninguna abierta mueve un número ya publicado: las tres nuevas mueven una métrica
   que todavía no existe.
   → §entradas.
@@ -1900,8 +1901,8 @@ detector.
 instancias sintéticas: **Pearson 0.787, Spearman 0.770** contra los dB medidos. El rasgo ordena por
 intensidad; nunca estuvo detectando presencia.
 
-**La distribución de referencia.** 548 instancias de `<ll>` y `<y>` inicial o intervocálica sobre
-los 44 hablantes argentinos del corpus:
+**La distribución de referencia.** 548 instancias de `<ll>` y `<y>` inicial de palabra sobre los
+44 hablantes argentinos del corpus:
 
 | | dB |
 |---|---|
@@ -1950,9 +1951,10 @@ gradiente otras 20 sintéticas, las dos del mismo oyente y ninguna a ciegas resp
 medido —se buscaba entender la cola, no validar—. El corpus es argentino declarado, no porteño
 verificado. Cuántas instancias por celda hacen falta para que la mediana sea estable está sin medir.
 
-**Qué queda.** Reescribir SPEC 5.1 y 7.4 con la métrica de percentil. La rótica sigue sin rasgo que
-la separe y hoy no tiene métrica. Falta el script: vale lo mismo que en A22, entra cuando el diseño
-cierre.
+**Qué queda.** El script, que es lo único: el diseño ya está en SPEC 5.1 y 7.4. La rótica sigue sin
+rasgo que la separe y hoy no tiene métrica. Queda por medir si el rehilamiento intervocálico tiene
+la misma intensidad que el inicial —el corpus tiene 4655 tokens y sumarlos duplicaría las instancias
+por celda—.
 
 ---
 
@@ -1986,8 +1988,9 @@ modelos, y el supuesto que habilita la tercera —que el clonado captura el idio
 fonos presentes en el prompt— es justamente una de las cosas que el benchmark puede testear. Se mide
 contra la mediana del hablante, con la cobertura declarada al lado.
 
-**Qué queda.** La nota de cobertura en SPEC 5.1 y en la tabla publicada de la métrica de acento. Si
-un modelo rinde distinto en `slr61_m_02` que en el resto, hay que leerlo con esto a la vista.
+**Qué queda.** La nota de cobertura ya está en SPEC 5.1; falta repetirla al lado de la tabla
+publicada de la métrica de acento. Si un modelo rinde distinto en `slr61_m_02` que en el resto, hay
+que leerlo con esto a la vista.
 
 ---
 

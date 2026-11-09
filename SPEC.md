@@ -51,9 +51,10 @@ cómo llegó la voz.
 Total = 45 × 4 × 3 × 3 modelos = **1620 síntesis** zero-shot, más la corrida de Sintética sobre
 esos mismos hablantes y el subset de costo en CPU (6.3).
 
-El set de frases de v0 ya trae 20 targets de yeísmo y 8 de rótica por hablante y seed
-(28 × 4 × 3 × 3 = **1008 mediciones** de acento), así que el corpus soporta la métrica de la
-sección 7.4 aunque su implementación esté planificada para v1.
+El set de frases de v0 ya trae 20 targets de yeísmo y 8 de rótica por hablante y seed. Los de
+yeísmo dan 20 × 4 × 3 × 3 = **720 mediciones** de acento, suficiente para la métrica de la sección
+7.4 aunque su implementación esté planificada para v1. Los de rótica se generan y se guardan, pero
+hoy no tienen métrica: ningún rasgo acústico la separa (7.4).
 
 ### v1 — ampliación
 
@@ -232,19 +233,33 @@ rasgo dialectal y falla el otro.
 
 **Restricción de diseño importante:** solo se marcan palabras que **empiezan** con el fonema
 objetivo. En español la `<r>` inicial de palabra es siempre vibrante múltiple, igual que `<ll>` e
-`<y>` iniciales son siempre el fonema rehilable. Así el timestamp de palabra de WhisperX marca
-directamente el inicio del segmento a medir y se evita montar un alineador forzado (MFA).
+`<y>` iniciales son siempre el fonema rehilable, así que la grafía determina el fonema sin
+ambigüedad.
 
 Nunca se marca:
 
 - la conjunción `y` aislada — es la vocal [i];
 - la `<y>` final de *Jujuy* — es semivocal;
-- fonemas intervocálicos (*calle*, *Callao*, *perro*, *mayo*) — audibles, no medibles.
+- fonemas intervocálicos (*calle*, *Callao*, *perro*, *mayo*) — **por ahora**, no por el corpus: la
+  distribución de referencia de 7.4 se construyó sólo con instancias iniciales. El corpus los tiene
+  de sobra —4655 tokens intervocálicos contra 2762 iniciales— y sumarlos más que duplicaría las
+  instancias por celda, que es justo lo que la mediana de 7.4 necesita. Falta medir si el
+  rehilamiento intervocálico tiene la misma intensidad; mientras tanto van a escucha manual.
 
 Lo que queda fuera de `targets` no se pierde: va a escucha manual, anotado en `notes`.
 
-La medición se hace sobre el **40–60 % central** del segmento, no sobre los bordes: los
-timestamps de WhisperX tienen error de decenas de milisegundos.
+**El segmento no lo abre el timestamp del ASR, lo abre un alineador forzado.** El diseño original
+marcaba iniciales para que el timestamp de palabra de WhisperX sirviera de arranque y no hiciera
+falta alinear. Medido, ese timestamp está corrido **−101 ms de mediana** —más que la consonante que
+hay que medir— y sólo el 14 % de las instancias cae dentro de ±40 ms. El arranque sale de `MMS_FA`
+(`torchaudio.pipelines`), que a ciegas le ganó al ASR 8 de 8. La restricción de marcar iniciales se
+mantiene por el motivo fonológico de arriba, no por el atajo.
+
+**Cobertura del fonema en los clips de referencia.** Dos de los ocho `ref_clips` no contienen
+ningún sitio de rehilamiento y ninguno contiene más de uno; `slr61_m_02` no lo tiene en ninguno de
+los dos. Un modelo que falle el yeísmo clonando a ese hablante puede no haberlo oído nunca en su
+prompt. Los clips no se cambian —obligaría a regenerar el grid entero— y la cobertura se declara al
+lado de la tabla publicada.
 
 #### Largo: escrito vs. hablado
 
@@ -1009,43 +1024,84 @@ remite ahí. El TTFB real todavía no se mide: los números publicados salen del
 
 ### 7.4 Acento rioplatense — v1
 
-Dos fenómenos, la misma maquinaria: sobre el segmento que abre cada `target` (posición inicial de
-palabra, timestamp de WhisperX), midiendo el 40–60 % central.
+Mide **yeísmo rehilado** y nada más. La rótica se genera pero no se mide: ver el final de la
+sección.
 
-**Yeísmo** — features:
+**El segmento.** El arranque lo da `MMS_FA` sobre el texto de referencia, no el timestamp del ASR
+(5.1). El final no hace falta: la medición toma los **100 ms posteriores al arranque**, que cubren
+cualquier realización de la consonante sin depender de dónde termina. Que el alineador trabaje
+contra el texto y no contra la transcripción da además un beneficio que importa acá: encuentra la
+palabra aunque el modelo la haya pronunciado tan mal que el ASR no la escribió, y son justo esos
+los casos que la métrica tiene que capturar.
 
-1. Centro de gravedad espectral del segmento.
-2. Ratio de energía 2.5–8 kHz sobre energía total.
-3. Presencia de sonoridad (HNR o autocorrelación).
+**El rasgo, uno solo y continuo:**
 
-Con eso se clasifica cada realización en:
+```
+pico sobre ventanas de 25 ms, paso 5 ms, de  10·log10( E>2.5 kHz / E<1 kHz )
+```
 
-- **[ʝ] / [j]** — aproximante palatal, poca energía alta → no rioplatense
-- **[ʒ]** — fricativa sonora → rioplatense tradicional
-- **[ʃ]** — fricativa sorda → porteño contemporáneo
+Es un cociente entre dos bandas del mismo fragmento, así que no depende del nivel de grabación ni
+del brillo de la voz. Verificado: las medianas por sexo dan +22 dB en mujeres y +21 en varones, y el
+hablante más bajo de los 44 es varón.
 
-La métrica por modelo es el porcentaje de realizaciones que caen en [ʒ] o [ʃ].
+**No se clasifica en fonos ni se aplica umbral.** El diseño anterior repartía cada realización entre
+[ʝ]/[j], [ʒ] y [ʃ] y reportaba el porcentaje de realizaciones rioplatenses. Sobre audio real eso no
+tiene dónde apoyarse: la distribución de los 44 hablantes del corpus tiene **un solo modo** entre +20
+y +30 dB con cola hacia abajo, no tres grupos separados. Un corte en 0 dB reprueba al 11.7 % del
+habla argentina real, incluida una hablante que rehíla en las cuatro instancias que se escucharon y
+mide entre −11 y 0 dB. El rehilamiento es un continuo de intensidad y la métrica lo reporta como
+tal.
 
-**Rótica** — las mismas features más una específica:
+**La distribución de referencia.** 548 instancias de `<ll>` y `<y>` **inicial de palabra** sobre los
+44 hablantes argentinos del corpus, no sobre los `control_clips` —cuatro hablantes no alcanzan para
+una distribución—. Las intervocálicas quedaron afuera por ahora y se pueden sumar (5.1):
 
-1. **Número de oclusiones** — picos y valles periódicos en la envolvente de amplitud,
-   típicamente 20–35 Hz de modulación. Es el feature propio de la categoría.
-2. Ratio de energía en alta frecuencia — detecta asibilación (fricción).
-3. Duración del segmento.
-4. Sonoridad (HNR).
+| | dB |
+|---|---|
+| p05 | −10.4 |
+| p25 | +14.4 |
+| mediana | **+21.6** |
+| p75 | +26.4 |
+| p95 | +33.2 |
 
-**Cómo se reporta la rótica — importante.** El resultado se expresa como **distancia respecto de
-la distribución de los hablantes reales de SLR61**, nunca como "más fuerte" o "más débil" que
-otras variedades. Motivo: la afirmación de que el rioplatense trina con más fuerza que el
-mexicano o el colombiano es discutible en la literatura. Los marcadores claros son la asibilación
-(vibrante con fricción) y el grupo /tɾ/ cuasi-retroflejo, pero la asibilación es más
-característica del noroeste argentino que del porteño. Anclando la métrica a la distribución
-empírica de SLR61 —cuyos hablantes son porteños— el resultado es válido sin depender de que la
-premisa dialectal sea correcta.
+Por hablante las medianas van de −11.0 a +29.4 dB. El archivo versionado guarda las instancias y las
+medianas por hablante, no umbrales.
 
-En ambos casos los umbrales **se calibran sobre los `control_clips` reales de SLR61**, que dan la
-distribución de referencia, y se validan a oído sobre una muestra aleatoria. Guardar los umbrales
-calibrados en un YAML versionado, no hardcodeados.
+**Lo que se reporta.** Por celda —modelo, hablante de referencia, seed— la **mediana de sus
+instancias de target**, nunca una sola: `arf_03853` recorre 14 dB entre cuatro instancias de la
+misma sesión, así que con una palabra el número depende de cuál tocó.
+
+Esa mediana se lee de dos formas, y las dos van en la tabla:
+
+1. **La diferencia contra el hablante que la celda estaba clonando.** Es el número principal, porque
+   el objetivo del clonado es esa persona y no el promedio del corpus. Los cuatro hablantes de
+   referencia caen entre el percentil 49 y el 74, todos por encima de la mediana, así que ninguna
+   celda arranca con una referencia floja.
+2. **El percentil en la distribución de los 44.** Da la escala: dice cuánto significa esa diferencia
+   en términos de hablantes reales. Una celda por debajo del hablante más bajo del corpus queda
+   fuera de rango y se reporta así —"por debajo del mínimo de referencia"—, no como percentil 0.
+
+Los cuatro hablantes de referencia están adentro de la distribución, lo que casi no la mueve: 55 de
+548 instancias, y excluirlos corre la mediana de las medianas de +20.6 a +19.7 dB. Se dejan adentro
+y se declara.
+
+**Validación a oído.** Dos escuchas, 20 instancias cada una, un solo oyente, juzgando intensidad de
+1 a 5. Sobre síntesis: Pearson 0.787, Spearman 0.770 contra los dB. Sobre audio real de los
+hablantes extremos: 0.717 y 0.836. El rasgo ordena por intensidad. Alcanza para fijar el diseño, no
+para publicar una cifra de validación: hace falta más de un oyente y a ciegas respecto del valor
+medido.
+
+**Rótica — sin métrica.** El mismo rasgo no la separa: los picos caen sobre la /s/ siguiente, 24 de
+24 en «Rosario» y 24 de 24 en «Recién». La envolvente de amplitud —contar oclusiones, que era el
+feature propio de la categoría— tampoco delimita el segmento. Los targets de rótica se generan y se
+guardan para cuando haya un rasgo que funcione; mientras tanto la categoría va a escucha humana como
+en v0.
+
+Si aparece ese rasgo, vale la misma regla que para el yeísmo y por un motivo adicional: la
+afirmación de que el rioplatense trina con más fuerza que el mexicano o el colombiano es discutible
+en la literatura, y la asibilación —el marcador claro junto al grupo /tɾ/ cuasi-retroflejo— es más
+característica del noroeste argentino que del porteño. Anclando a la distribución empírica del
+corpus el resultado no depende de que la premisa dialectal sea correcta.
 
 ### 7.5 Tasa de fallo
 
