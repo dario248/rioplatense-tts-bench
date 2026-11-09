@@ -12,20 +12,21 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-06):** **medir la similitud a través del decoder de cada modelo cambia
-  tres filas de seis.** El códec de Pocket cuesta 0.172 de techo y el vocoder de Sintética 0.105,
-  medidos sobre audio real. Pocket 24c pasa de 0.390 a 0.525 y Sintética de 0.601 a 0.727. Los
-  otros tres decoders no son separables y quedaron sin medir. → A19 · A18.
-- **Próximo paso: medir la precisión de los timestamps de palabra**, que decide el tamaño de la
-  métrica de acento (SPEC 7.4) —el diferencial de v1 y lo único que el benchmark promete y no
-  mide—. Lo que queda abierto además es afinado, con su costo escrito en cada entrada.
-  → SPEC 7.4 · §entradas.
+- **Último hito (2026-11-09):** **el atajo sobre el que se diseñó la métrica de acento no se
+  sostiene.** El timestamp de palabra está corrido −101 ms de mediana, más que la consonante que
+  7.4 quiere medir, y a ciegas el alineador forzado le gana 8 de 8. El inicio del segmento se
+  resuelve alineando; el final sigue sin resolverse. → A22.
+- **Próximo paso: decidir cómo se delimita el final del segmento**, que es lo único que falta para
+  poder construir la distribución de referencia de 7.4 y con ella la métrica de acento —el
+  diferencial de v1—. SPEC 5.1 y 7.4 describen un diseño que A22 refuta y hay que reescribirlos.
+  → A22 · SPEC 5.1 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1.
-- **Abiertos:** ★★ A11 **diferida** · ★ A7 · A8 · A9 · A17. Resueltas en noviembre: A6, A18, A19,
-  A20 y A21. Ninguna de las abiertas mueve un número ya publicado.
+- **Abiertos:** ★★★ A22 **mide y refuta; falta rehacer el diseño** · ★★ A11 **diferida** · ★ A7 ·
+  A8 · A9 · A17. Resueltas en noviembre: A6, A18, A19, A20 y A21. Ninguna abierta mueve un número
+  ya publicado: A22 mueve una métrica que todavía no existe.
   → §entradas.
 - **Pendiente de medir:** el TTFB en streaming, que hoy no existe en ningún modelo (A9), y el techo
   del decoder de XTTS, Chatterbox y Qwen, que no son separables del acústico y hoy son tres guiones
@@ -1805,6 +1806,71 @@ bien dicho. Nada lo mide: A13 cubre la cola posterior al habla, no el corte en e
 
 **Dónde quedó.** `data/corrections/verbalizacion.tsv`, `configs/phrases_ablation.yaml`,
 `data/manifests/*_norm.jsonl`, `data/metrics_ablation/` y `scripts/build_verbalization_sheet.py`.
+
+---
+
+## A22 ★★★ — El timestamp de palabra está corrido 100 ms, y 7.4 se apoyaba en él
+
+**Pregunta.** ¿El timestamp de palabra del ASR alcanza para abrir el segmento que mide la métrica
+de acento?
+
+**Por qué importa.** Todo el diseño de 7.4 cuelga de ese atajo. SPEC 5.1 marca **sólo palabras que
+empiezan con el fonema objetivo** —`<ll>`, `<y>` y `<r>` iniciales— precisamente para que el
+timestamp de palabra abra el segmento y «se evita montar un alineador forzado». Y 7.4 mide el
+40–60 % central «porque los timestamps tienen error de decenas de milisegundos». Esa cifra era un
+supuesto, nunca medida, y la métrica de acento es el diferencial de v1.
+
+**Respondida el 2026-11-09: no alcanza.** Sobre las 13 frases con target, semilla 1234 y los seis
+modelos —672 instancias—, comparando el timestamp del ASR contra un alineador forzado:
+
+| desvío absoluto | ms |
+|---|---|
+| mediana | **101** |
+| p75 | 147 |
+| p90 | 201 |
+| p95 | 324 |
+
+**No es ruido, es un corrimiento.** La mediana con signo da **−101 ms**: el ASR marca *antes* de
+que la palabra empiece, casi siempre. Sólo el 14 % de las instancias cae dentro de ±40 ms. No lo
+explican las palabras al principio de frase, donde el ASR suele escribir 0.0: sacándolas el sesgo
+empeora a −110 ms.
+
+**Cien milisegundos es más que el sonido que hay que medir.** Una fricativa o una vibrante inicial
+duran 60 a 80 ms, así que la ventana del 40–60 % no caería adentro por poco: caería
+**sistemáticamente sobre el silencio o sobre el sonido anterior**. Un error parejo es peor que uno
+ruidoso, porque no se promedia.
+
+**Cuál de los dos está corrido, decidido a oído y a ciegas.** Ocho pares, un modelo cada uno, con
+las dos marcas mezcladas en orden aleatorio y separadas entre 62 y 153 ms. **El alineador ganó 8 de
+8.** Antes, sobre 16 palabras de audio real del corpus, el alineador había acertado el arranque en
+15 —el único desvío se comía la cola de la palabra anterior—.
+
+**El alineador no resuelve el final del segmento.** Marca instantes, no bordes: las diez palabras
+de target de una sola letra dieron exactamente 20 ms, que es un cuadro, el mínimo que puede emitir.
+El largo de la consonante sigue sin tener de dónde salir, y era la otra mitad de lo que 7.4
+necesita.
+
+**Un beneficio que no se buscaba: el alineador siempre encuentra la palabra.** Trabaja contra el
+texto de referencia, así que no depende de que el ASR la haya escrito. El ASR no la escribió en 37
+de las 672 instancias, y son justo los casos en que el modelo pronunció mal —los que más importan
+para una métrica de realización dialectal—.
+
+**El temor que no se cumplió.** El alineador romaniza, así que espera dos `l` donde el rioplatense
+dice una fricativa, y podía fallar justo en el yeísmo. No pasa: en la validación a oído el yeísmo
+dio 7 de 8 y la rótica 8 de 8.
+
+**Límites de lo medido.** La validación sobre audio real son 16 palabras de dos hablantes, los dos
+varones, y los 8 casos de rótica son del mismo. El A/B a ciegas son 8 pares. Alcanza para decidir
+el diseño, no para publicar una cifra de precisión del alineador.
+
+**Qué queda.** El inicio del segmento, resuelto por alineación forzada. El final, sin resolver. La
+distribución de referencia de 7.4 —los umbrales calibrados sobre hablantes reales— ahora se puede
+construir, porque recortar esos segmentos necesitaba exactamente esto.
+
+**Sin script todavía, y a propósito.** Estos números salieron de código que no está en el repo, así
+que hoy no se reproducen. El alineador va a terminar adentro del pipeline de la métrica, y
+escribirlo antes de cerrar cómo se calcula el segmento sería escribirlo dos veces. Entra cuando el
+diseño esté cerrado; hasta entonces, la entrada vale por la medición y no por la trazabilidad.
 
 ---
 
