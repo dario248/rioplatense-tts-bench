@@ -12,20 +12,19 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
 
 - **Estado:** v0 cerrado y publicado el 2026-10-03. **v1 arrancó por los modelos**: las dos
   variantes de Pocket TTS están generadas y medidas en las cuatro dimensiones.
-- **Último hito (2026-11-09):** **la métrica de acento se rediseñó entera.** El timestamp de
-  palabra está corrido −101 ms y lo reemplaza un alineador forzado (A22); el rehilamiento resultó
-  un continuo y no un sí/no, así que el umbral se cae y en su lugar va el percentil contra 548
-  instancias de los 44 hablantes del corpus (A23). → A22 · A23.
-- **Próximo paso: el script de la métrica de acento**, que es lo único que falta: SPEC 5.1 y 7.4 ya
-  describen el diseño nuevo —alineación forzada, pico sobre los 100 ms del arranque, percentil
-  contra el hablante clonado—. La rótica queda sin métrica: ningún rasgo la separa.
-  → A23 · SPEC 5.1 · SPEC 7.4.
+- **Último hito (2026-11-10):** **el rasgo quedó validado sobre audio real y la métrica consiguió
+  piso.** Separa argentino de chileno, peruano y venezolano con **AUC 0.960**, y la escucha dio no
+  en 12 de 12 antes de ver los números. `arm_05223` sale de la referencia por no ser porteño. El
+  intervocálico entra y casi triplica las instancias. → A25 · A26 · A27.
+- **Próximo paso: 7.4 otra vez**, que está escrita con una sola distribución y ahora hay piso y
+  techo. Después el YAML que declara la población de referencia, y después el script.
+  → A25 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1 · A24.
-- **Abiertos:** ★★★ A22 y A23 **medidas y bajadas al SPEC; falta el script** · ★★ A11 **diferida** ·
-  ★ A7 · A8 · A9 · A17. A24 cerrada. Resueltas en noviembre: A6, A18,
+- **Abiertos:** ★★★ A25 **medida; falta bajarla al SPEC** · ★★ A26 **decidida** · ★★ A11
+  **diferida** · ★ A7 · A8 · A9 · A17. A22, A23, A24 y A27 cerradas. Resueltas en noviembre: A6, A18,
   A19, A20 y A21. Ninguna abierta mueve un número ya publicado: las tres nuevas mueven una métrica
   que todavía no existe.
   → §entradas.
@@ -1927,6 +1926,11 @@ realmente dudoso —1, 2, 3 y 4— y adentro de él el rasgo se invierte: el 4 e
 **El costo del umbral, medido.** 0 dB reprueba el **11.7 %** del habla argentina real del corpus.
 Para no perder a `arf_05679` habría que bajarlo a −12 dB, y ahí pasa casi cualquier cosa.
 
+> **Matizado el 2026-11-10.** Parte de esa cola baja era la posición: `arf_05679` mide −0.4 en
+> inicial y **+15.9** en intervocálica (A26). Y el corte que mejor separa variedades no es 0 sino
+> **+5.0 dB** (A25). La conclusión de que no hay umbral defendible se sostiene, pero el 11.7 % mezcla
+> umbral mal puesto con un efecto de posición que entonces no se medía.
+
 **Lo que el rasgo sí hace bien.** Ninguna instancia arriba de +7 dB bajó de 4 sobre 5, y ninguna
 juzgada 5 midió menos de +7. No da falsos positivos: el valor alto es evidencia, el bajo no.
 
@@ -1951,10 +1955,9 @@ gradiente otras 20 sintéticas, las dos del mismo oyente y ninguna a ciegas resp
 medido —se buscaba entender la cola, no validar—. El corpus es argentino declarado, no porteño
 verificado. Cuántas instancias por celda hacen falta para que la mediana sea estable está sin medir.
 
-**Qué queda.** El script, que es lo único: el diseño ya está en SPEC 5.1 y 7.4. La rótica sigue sin
-rasgo que la separe y hoy no tiene métrica. Queda por medir si el rehilamiento intervocálico tiene
-la misma intensidad que el inicial —el corpus tiene 4655 tokens y sumarlos duplicaría las instancias
-por celda—.
+**Qué queda.** El script. La rótica sigue sin rasgo que la separe y hoy no tiene métrica. Lo del
+intervocálico se midió el 2026-11-10 y entra: → A26. La escala pasó de una distribución a dos
+anclas: → A25.
 
 ---
 
@@ -1991,6 +1994,166 @@ contra la mediana del hablante, con la cobertura declarada al lado.
 **Qué queda.** La nota de cobertura ya está en SPEC 5.1; falta repetirla al lado de la tabla
 publicada de la métrica de acento. Si un modelo rinde distinto en `slr61_m_02` que en el resto, hay
 que leerlo con esto a la vista.
+
+---
+
+## A25 ★★★ — Las variedades que no rehílan validan el rasgo y dan la segunda ancla
+
+**Pregunta.** La escalera de A23 ordena hablantes porteños entre sí. ¿Alcanza para afirmar que un
+modelo **no** rehíla?
+
+**Por qué importa.** No alcanzaba, y era el agujero grande. Un modelo entrenado en español neutro
+produce [ʝ] y la métrica sólo podía decir «por debajo del hablante más bajo del corpus», sin saber
+si eso es la ausencia del fenómeno o un porteño flojo. La ausencia es justo el modo de falla que
+una métrica de acento tiene que detectar.
+
+**Respondida el 2026-11-10: el rasgo separa variedades, y con eso la métrica consigue piso.**
+
+CSLatam trae cuatro variedades más del mismo corpus —mismo protocolo, mismo micrófono, misma
+lectura— así que la comparación no mezcla dialecto con canal de grabación. Esa condición no se
+repite con ningún corpus externo y es lo que hace la prueba interpretable.
+
+| variedad | instancias | hablantes | p25 | mediana | p75 |
+|---|---|---|---|---|---|
+| argentino | 1647 | 44 | +13.7 | **+20.2** | +24.8 |
+| colombiano | 1432 | 33 | −12.5 | −6.0 | +4.6 |
+| venezolano | 979 | 23 | −17.4 | −13.2 | −7.4 |
+| chileno | 1275 | 31 | −18.5 | −14.7 | −10.5 |
+| peruano | 1584 | 38 | −18.9 | −15.1 | −10.8 |
+
+**Instancia por instancia, AUC 0.960** sobre 5485 instancias de argentino contra chileno, peruano y
+venezolano. El mejor corte cae en **+5.0 dB** y clasifica bien el 93.2 %. Ese corte es el mismo
+punto donde la sonoridad dejaba de ser plana (A27), medido por dos caminos sin relación.
+
+**Validado a oído antes de mirar los números.** 20 clips, cuatro por variedad, dos palabras,
+hablantes distintos: chileno, peruano y venezolano dieron **no en los 12 de 12**. Los argentinos,
+sí con intensidad 5. La escucha se hizo con los números tapados, y la predicción se cumplió.
+
+**`arm_05223` no es un rehilante débil.** Su mediana es −14.5, contra −14.4 de las tres variedades
+del piso juntas: está en el centro de esa nube, a trece puntos del siguiente argentino. Sale de la
+distribución de referencia, **y el criterio que lo saca no es éste**: a oído su rótica es arrastrada
+y de otra región, lo que es evidencia independiente del rasgo que estamos validando. Que además
+mida como no rehilante es confirmación, no premisa. Sacándolo no queda solapamiento: el argentino
+más bajo en −1.4 contra el no rehilante más alto en −3.5.
+
+**El colombiano queda afuera del piso, por disperso.** Sus medianas por hablante van de −16.6 a
++22.2 y pisa las dos nubes. El mecanismo está medido y es sociolingüístico: **colombianas −0.2,
+colombianos −9.9**, casi diez decibeles. Es el mismo patrón documentado para Buenos Aires, donde el
+cambio lo lideraron las mujeres; en el control argentino no aparece —mujeres +18.7, varones +19.7—
+porque acá el cambio ya está completo en los dos. Lo que descalifica al colombiano como piso no es
+su media sino su ancho: un piso que se superpone con el techo no ancla nada.
+
+**Las anclas quedan así:**
+
+| | hablantes | instancias | mediana |
+|---|---|---|---|
+| techo, argentinos sin `arm_05223` | 43 | 1600 | **+19.5** |
+| piso, chileno + peruano + venezolano | 92 | 3838 | **−14.4** |
+
+**Límites de lo medido.** El rasgo no decide una instancia suelta entre −15 y 0 dB: en esa franja
+hay clips juzgados «no» a −9.2 y «sí» a −6.8. La métrica usa la mediana de ~20 instancias por
+celda, así que no la afecta, pero no hay que vender detección por instancia. La escucha de
+variedades **no fue ciega al rótulo** —los clips iban agrupados y etiquetados—, así que el «sí
+suave» del colombiano puede tener algo de expectativa; las tres variedades del piso dieron no por
+unanimidad, que es lo que el ancla necesita. El corpus declara país, no ciudad.
+
+**Qué queda.** La métrica pasa a ser una posición entre dos anclas reales, como la de similitud.
+Reescribir 7.4 con eso, y declarar la población de referencia en un YAML propio con el motivo de
+cada exclusión al lado.
+
+---
+
+## A26 ★★ — El intervocálico casi triplica las instancias, y lo que agrupa no es la posición
+
+**Pregunta.** La distribución de A23 se construyó sólo con `<ll>` y `<y>` iniciales. ¿Conviene sumar
+los intervocálicos, que SPEC 5.1 dejaba afuera?
+
+**Por qué importa.** La mediana por celda es inestable con pocas instancias —`arf_03853` recorre 14
+dB entre cuatro instancias de la misma sesión—, y el set de frases tiene intervocálicos que hoy van
+a escucha manual. Decidirlo antes de escribir el script evita escribir dos veces la apertura del
+segmento, que es su núcleo.
+
+**Respondida el 2026-11-10: conviene, con una referencia por grupo.**
+
+**Es la misma medida, con un corrimiento sistemático.** Pareado por hablante, el intervocálico da
+**−2.1 dB** de mediana respecto del inicial, 31 de 41 hablantes van para abajo, Wilcoxon
+**p = 0.0007**. Pero la correlación entre las dos medianas por hablante es **r = 0.809**: mide lo
+mismo sobre la misma persona. No son dos fenómenos, es un efecto de posición que hay que corregir
+antes de juntar.
+
+**Las instancias pasan de 612 a 1647** en los 44 argentinos.
+
+**La posición es un proxy grueso.** Sacando el efecto del hablante, y sobre palabras que dicen al
+menos 8 personas, **la palabra explica el 16 % de la varianza**, contra ~1.6 dB de la posición
+sola. Y adentro aparece el grafema: `<ll>` da +0.5 centrado y `<y>` da −0.9, **p = 1.5 × 10⁻⁸**.
+Cruza la posición: `ayuda`, `haya`, `vaya`, `mayoría` van todas abajo y `lleva`, `llano`, `llena`
+todas arriba.
+
+**Una referencia por palabra no es viable.** Sólo **10 de los 20 targets** del set de frases tienen
+8 o más hablantes en el corpus: `lluvia` 40, `llegue` 38, `llovió` 38, `llegó` 37, `yo` 27, `ya` 21,
+`llama` 14. Faltan `llanta`, `yerba`, `yogur`, `yuyo`, `llavero`, `llave`, `llamalo`, `llevate`, y
+`llueve` con 7 y `llevo` con 3. Se agrupa por **posición y grafema**: cuatro grupos, los 20 targets
+cubiertos.
+
+**Lo que atenúa el problema.** Los seis modelos dicen exactamente las mismas frases, así que el
+efecto de la palabra se cancela en la comparación entre modelos. No se cancela contra los hablantes
+reales, que dijeron otras palabras: sesga el número absoluto, no el orden.
+
+**Un error encontrado de paso: préstamos que no son el fonema.** `ballet` midió −37 dB centrado, y
+con ella `you` −33, `youtube` −31, `rolling` −26, `fellini` −21 y `hayek` −13. Las seis son palabras
+donde `<ll>`/`<y>` no es /ʝ/ y la selección por grafía las tomaba igual. Que caigan todas juntas al
+fondo es señal de que el rasgo funciona y de que le estaba dando mala entrada. Son 35 instancias, el
+2 %: la mediana global pasa de +20.0 a +20.2, así que no contaminaron ninguna conclusión previa.
+Filtradas por lista explícita, que es lo que hay —no hay regla de grafía que las distinga—.
+
+**Qué queda.** Para las frases nuevas de v1 conviene elegir los targets de yeísmo entre palabras que
+el corpus cubra: es gratis ahora y caro después. La lista de préstamos depende del corpus, así que
+se revisa mirando los outliers del fondo cada vez que entra material nuevo, que es como apareció
+`ballet`.
+
+---
+
+## A27 ★ — Dos intentos de limpiar el rasgo, los dos fallidos
+
+**Pregunta.** El rasgo es un cociente con la banda grave en el denominador, y la sonoridad mete
+energía justo ahí. ¿Se puede separar fricción de sonoridad?
+
+**Por qué importa.** Si no se separan, un [ʒ] con mucha fricción y una `y` aproximante sin ninguna
+pueden dar el mismo número bajo por motivos opuestos: el primero es un acierto y el segundo es el
+error que hay que detectar.
+
+**Respondida el 2026-11-10: no se separan, y las dos vías que probé empeoran las cosas.**
+
+**Intento 1 — medir la sonoridad aparte.** Periodicidad por autocorrelación normalizada en el rango
+de F0, en la misma ventana. No aporta un eje nuevo: arriba de +5 dB es **plana en 0.21** sin importar
+el valor, y abajo sube junto con el dB —0.44 entre −5 y +5, 0.65 abajo de −5—. De las 220 instancias
+bajo +5 dB, sólo 16 son sordas. Dice casi lo mismo que el dB con otra unidad, y no distingue [ʒ] de
+[ʝ] porque los dos son sonoros. **Fuera de la métrica: un solo rasgo.**
+
+Lo único que dejó: el quiebre en +5 dB, que resultó ser el mismo punto donde A25 encuentra el mejor
+corte entre variedades.
+
+**Intento 2 — cambiar el denominador por la vocal siguiente.** La idea era sacar la voz del
+denominador normalizando por la energía de la vocal contigua, que el alineador ya marca. Medido
+contra los 20 juicios a oído de A23:
+
+| medida | Pearson | Spearman |
+|---|---|---|
+| agudos sobre graves | **+0.714** | **+0.835** |
+| agudos sobre la vocal | +0.619 | +0.764 |
+
+Peor en las dos. Y el caso que tenía que rescatar —`arf_05679`, que el oído marca rehilada y el
+rasgo manda al fondo— pasó de −0.4 a −14.3, igual de abajo. El efecto del grafema, que esperaba ver
+desarmarse, creció de 1.4 a 3.4 dB.
+
+**Por qué falla.** La vocal también varía: es más fuerte en sílaba tónica y cambia con la vocal que
+sea. Cambia un denominador contaminado por la voz por uno contaminado por la prosodia, y el segundo
+varía más. Se ve en `arf_01523` diciendo `Ya`: el oído le puso 5, el cociente viejo da +28.4 y el
+nuevo −14.2, al fondo, por la vocal tónica inflando el denominador.
+
+**Qué queda.** El cociente agudos sobre graves se queda como único rasgo. Que no distinga un [ʒ]
+fricativo de una `y` aproximante es una limitación a declarar: hoy no hay con qué, y A25 muestra que
+a nivel de población la separación igual se consigue.
 
 ---
 
