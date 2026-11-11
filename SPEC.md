@@ -51,9 +51,10 @@ cómo llegó la voz.
 Total = 45 × 4 × 3 × 3 modelos = **1620 síntesis** zero-shot, más la corrida de Sintética sobre
 esos mismos hablantes y el subset de costo en CPU (6.3).
 
-El set de frases de v0 ya trae 20 targets de yeísmo y 8 de rótica por hablante y seed. Los de
-yeísmo dan 20 × 4 × 3 × 3 = **720 mediciones** de acento, suficiente para la métrica de la sección
-7.4 aunque su implementación esté planificada para v1. Los de rótica se generan y se guardan, pero
+El set de frases de v0 ya trae 20 targets de yeísmo inicial y 8 de rótica por hablante y seed, más
+5 sitios intervocálicos que 5.1 todavía no marca. Los 25 dan 25 × 4 × 3 × 3 = **900 mediciones** de
+acento, suficiente para la métrica de la sección 7.4 aunque su implementación esté planificada para
+v1. Los de rótica se generan y se guardan, pero
 hoy no tienen métrica: ningún rasgo acústico la separa (7.4).
 
 ### v1 — ampliación
@@ -211,7 +212,7 @@ rioplatense-tts-bench/
   failure_hypothesis: "Frase de doble fenómeno: tres róticas medibles y un target de yeísmo."
   targets:                              # segmentos medibles automáticamente
     - {word: "Recién", phenomenon: rhotic}
-    - {word: "llegó",  phenomenon: yeismo}
+    - {word: "llegó",  phenomenon: yeismo, position: inicial}
     - {word: "río",    phenomenon: rhotic}
     - {word: "ropa",   phenomenon: rhotic}
   n_words: 8                            # opcional, funciona como checksum del texto
@@ -226,25 +227,28 @@ Las diez categorías activas: `yeismo_rehilado`, `rotica`, `voseo`, `enunciados_
 
 #### Targets — regla de marcado
 
-`targets` es una lista de objetos con `word` y `phenomenon` (`yeismo` | `rhotic`), no una lista
-de strings: desde que hay dos fenómenos medibles, el fenómeno tiene que viajar con la palabra.
-Una misma frase puede mezclar los dos, y eso es deseable — permite ver si un modelo acierta un
-rasgo dialectal y falla el otro.
+`targets` es una lista de objetos con `word`, `phenomenon` (`yeismo` | `rhotic`) y, para el yeísmo,
+`position`; no una lista de strings: desde que hay dos fenómenos medibles, el fenómeno tiene que
+viajar con la palabra. Una misma frase puede mezclar los dos, y eso es deseable — permite ver si un
+modelo acierta un rasgo dialectal y falla el otro.
 
-**Restricción de diseño importante:** solo se marcan palabras que **empiezan** con el fonema
-objetivo. En español la `<r>` inicial de palabra es siempre vibrante múltiple, igual que `<ll>` e
-`<y>` iniciales son siempre el fonema rehilable, así que la grafía determina el fonema sin
-ambigüedad.
+**Dónde se marca.** Se marca donde la grafía determina el fonema sin ambigüedad, que son dos
+posiciones. En español la `<r>` inicial de palabra es siempre vibrante múltiple; `<ll>` e `<y>` son
+el fonema rehilable tanto en inicial de palabra como entre vocales.
+
+Por eso los targets de yeísmo llevan **`position`**, `inicial` o `intervocalica`: una misma palabra
+puede tener los dos —*yuyo*— y 7.4 mide cada posición contra su propia ancla. CI valida el campo
+contra la grafía. Los de rótica no lo llevan: son siempre iniciales.
 
 Nunca se marca:
 
 - la conjunción `y` aislada — es la vocal [i];
 - la `<y>` final de *Jujuy* — es semivocal;
-- fonemas intervocálicos (*calle*, *Callao*, *perro*, *mayo*) — **por ahora**, no por el corpus: la
-  distribución de referencia de 7.4 se construyó sólo con instancias iniciales. El corpus los tiene
-  de sobra —4655 tokens intervocálicos contra 2762 iniciales— y sumarlos más que duplicaría las
-  instancias por celda, que es justo lo que la mediana de 7.4 necesita. Falta medir si el
-  rehilamiento intervocálico tiene la misma intensidad; mientras tanto van a escucha manual.
+- róticas intervocálicas (*perro*) — la grafía `<rr>` sí es inequívoca, pero la rótica no tiene
+  métrica (7.4);
+- **préstamos y nombres propios** donde `<ll>`/`<y>` no es /ʝ/ —*ballet*, *youtube*, *Fellini*—. No
+  hay regla de grafía que los distinga: van en una lista explícita en `rtb.config`, que se revisa
+  mirando los valores del fondo cada vez que entra material nuevo.
 
 Lo que queda fuera de `targets` no se pierde: va a escucha manual, anotado en `notes`.
 
@@ -252,8 +256,9 @@ Lo que queda fuera de `targets` no se pierde: va a escucha manual, anotado en `n
 marcaba iniciales para que el timestamp de palabra de WhisperX sirviera de arranque y no hiciera
 falta alinear. Medido, ese timestamp está corrido **−101 ms de mediana** —más que la consonante que
 hay que medir— y sólo el 14 % de las instancias cae dentro de ±40 ms. El arranque sale de `MMS_FA`
-(`torchaudio.pipelines`), que a ciegas le ganó al ASR 8 de 8. La restricción de marcar iniciales se
-mantiene por el motivo fonológico de arriba, no por el atajo.
+(`torchaudio.pipelines`), que a ciegas le ganó al ASR 8 de 8. Y como el alineador marca cualquier
+fonema y no sólo el primero de la palabra, el intervocálico deja de costar algo: la restricción a
+iniciales era del atajo, no de la fonología.
 
 **Cobertura del fonema en los clips de referencia.** Dos de los ocho `ref_clips` no contienen
 ningún sitio de rehilamiento y ninguno contiene más de uno; `slr61_m_02` no lo tiene en ninguno de
@@ -1040,50 +1045,77 @@ los casos que la métrica tiene que capturar.
 pico sobre ventanas de 25 ms, paso 5 ms, de  10·log10( E>2.5 kHz / E<1 kHz )
 ```
 
-Es un cociente entre dos bandas del mismo fragmento, así que no depende del nivel de grabación ni
-del brillo de la voz. Verificado: las medianas por sexo dan +22 dB en mujeres y +21 en varones, y el
-hablante más bajo de los 44 es varón.
+Es un cociente entre dos bandas del mismo fragmento, así que no depende del nivel de grabación. Del
+brillo de la voz depende poco y no cero: entre los argentinos las medianas por sexo dan +22 dB en
+mujeres y +21 en varones, pero en la zona baja la brecha llega a 3 dB, y por eso el piso se parte
+por sexo.
 
 **No se clasifica en fonos ni se aplica umbral.** El diseño anterior repartía cada realización entre
 [ʝ]/[j], [ʒ] y [ʃ] y reportaba el porcentaje de realizaciones rioplatenses. Sobre audio real eso no
 tiene dónde apoyarse: la distribución de los 44 hablantes del corpus tiene **un solo modo** entre +20
-y +30 dB con cola hacia abajo, no tres grupos separados. Un corte en 0 dB reprueba al 11.7 % del
+y +30 dB con cola hacia abajo, no tres grupos separados. Un corte en 0 dB reprueba a una parte del
 habla argentina real, incluida una hablante que rehíla en las cuatro instancias que se escucharon y
 mide entre −11 y 0 dB. El rehilamiento es un continuo de intensidad y la métrica lo reporta como
 tal.
 
-**La distribución de referencia.** 548 instancias de `<ll>` y `<y>` **inicial de palabra** sobre los
-44 hablantes argentinos del corpus, no sobre los `control_clips` —cuatro hablantes no alcanzan para
-una distribución—. Las intervocálicas quedaron afuera por ahora y se pueden sumar (5.1):
+**Dos anclas, no una distribución.** El valor en dB no se interpreta solo: se lee como posición
+entre un **piso** —habla que no rehíla— y un **techo** —habla porteña—. Las dos salen de SLR61 con
+los silencios recortados, no de los `control_clips`, que son cuatro hablantes.
 
-| | dB |
+- **Techo:** los 43 hablantes `arf_`/`arm_`, 1621 instancias. Se excluye `arm_05223`, cuya mediana
+  (−14.5) coincide con la del piso y cuya rótica no es porteña.
+- **Piso:** los 92 hablantes chilenos, peruanos y venezolanos, 3879 instancias. **Se parte por
+  sexo**: donde nadie rehíla las mujeres miden 3 dB más alto que los varones, que es sesgo del
+  instrumento y no pronunciación. El techo no se parte, porque ahí la brecha desaparece.
+- **Colombiano excluido** de las dos: sus medianas por hablante van de −16.6 a +22.2 y pisan las dos
+  nubes.
+
+**Las anclas se toman por grupo**, porque la posición y el grafema corren el valor y no se suman
+entre sí:
+
+| grupo | techo | piso ♀ | piso ♂ |
+|---|---|---|---|
+| inicial `<ll>` | +21.9 | −12.1 | −14.8 |
+| inicial `<y>` | +21.4 | −11.9 | −15.3 |
+| intervocálica `<ll>` | +20.4 | −13.2 | −15.6 |
+| intervocálica `<y>` | +18.8 | −13.2 | −17.3 |
+
+El recorrido es de 32 a 37 dB según el grupo. `data/accent/reference.jsonl` guarda las instancias
+crudas de los 169 hablantes, sin filtrar; la población de cada ancla y sus exclusiones se declaran
+en `configs/accent_reference.yaml`, así que el filtro se audita sin rehacer la medición.
+
+**Cómo se calcula.** Tres pasos, y el cambio de unidad está en el segundo.
+
+1. **Cada instancia da un valor en dB**: el pico del cociente sobre sus 100 ms.
+2. **Cada instancia se convierte a puntos** contra las anclas de su grupo —0 es el piso, 100 es el
+   techo—, tomando el piso del sexo del hablante que la celda está clonando. Acá se va la diferencia
+   entre grupos: una intervocálica `<y>` de +18.8 dB y una inicial `<ll>` de +21.9 dB dan las dos
+   100 puntos, porque cada una se mide contra su propio techo.
+3. **Se agregan en una sola mediana por modelo**, sobre sus ~300 instancias. Después del paso 2
+   están todas en la misma escala, así que juntarlas no pierde nada: para eso servía agrupar.
+
+Un valor puede caer fuera de 0–100 y se reporta como tal, no se recorta.
+
+**La unidad de reporte es el modelo, no la celda.** Esas ~300 instancias son 20 sitios iniciales y 5
+intervocálicos del set, por 12 celdas. La celda sigue siendo la unidad de medición, pero con 25
+instancias su IC95 es de **25 puntos**: decir que un modelo rehíla mejor clonando a un hablante que
+a otro sería ruido.
+
+Al lado va la **diferencia contra el hablante que se estaba clonando**, porque el objetivo del
+clonado es esa persona y no el promedio del corpus. Los cuatro hablantes de referencia están dentro
+del techo y no lo mueven: 55 instancias sobre 1621.
+
+**La resolución se publica con la tabla.** Son tres límites distintos, en los puntos de la escala:
+
+| qué se afirma | límite |
 |---|---|
-| p05 | −10.4 |
-| p25 | +14.4 |
-| mediana | **+21.6** |
-| p75 | +26.4 |
-| p95 | +33.2 |
+| modelo A contra modelo B | **~7 puntos** (2.2 dB) |
+| posición absoluta en la escala | **~17 puntos** (5.6 dB) |
+| una celda suelta | **~25 puntos** (8.6 dB) — no se publica |
 
-Por hablante las medianas van de −11.0 a +29.4 dB. El archivo versionado guarda las instancias y las
-medianas por hablante, no umbrales.
-
-**Lo que se reporta.** Por celda —modelo, hablante de referencia, seed— la **mediana de sus
-instancias de target**, nunca una sola: `arf_03853` recorre 14 dB entre cuatro instancias de la
-misma sesión, así que con una palabra el número depende de cuál tocó.
-
-Esa mediana se lee de dos formas, y las dos van en la tabla:
-
-1. **La diferencia contra el hablante que la celda estaba clonando.** Es el número principal, porque
-   el objetivo del clonado es esa persona y no el promedio del corpus. Los cuatro hablantes de
-   referencia caen entre el percentil 49 y el 74, todos por encima de la mediana, así que ninguna
-   celda arranca con una referencia floja.
-2. **El percentil en la distribución de los 44.** Da la escala: dice cuánto significa esa diferencia
-   en términos de hablantes reales. Una celda por debajo del hablante más bajo del corpus queda
-   fuera de rango y se reporta así —"por debajo del mínimo de referencia"—, no como percentil 0.
-
-Los cuatro hablantes de referencia están adentro de la distribución, lo que casi no la mueve: 55 de
-548 instancias, y excluirlos corre la mediana de las medianas de +20.6 a +19.7 dB. Se dejan adentro
-y se declara.
+El ranking es más preciso que la posición absoluta porque los dos modelos se miden contra el mismo
+techo: un error al estimarlo los corre a los dos para el mismo lado, y en la resta se cancela.
+**Dos modelos separados por menos de 7 puntos empatan**, y así se reporta.
 
 **Validación a oído.** Dos escuchas, 20 instancias cada una, un solo oyente, juzgando intensidad de
 1 a 5. Sobre síntesis: Pearson 0.787, Spearman 0.770 contra los dB. Sobre audio real de los

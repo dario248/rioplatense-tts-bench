@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -12,14 +13,14 @@ from rtb.config import (
     Phrase,
     Speaker,
     categories_covered,
-    has_onset_for,
+    has_site_for,
     load_grid,
     load_model_config,
     load_phrases,
     load_speakers,
     words_of,
 )
-from rtb.schema import Phenomenon, PhraseCategory
+from rtb.schema import Phenomenon, PhraseCategory, Position
 from rtb.textnorm import normalize_text
 
 YEISMO = PhraseCategory.YEISMO_REHILADO.value
@@ -31,7 +32,7 @@ def phrase_dict(**overrides: object) -> dict[str, object]:
         "text": "Llovió toda la noche y la calle amaneció inundada.",
         "category": YEISMO,
         "failure_hypothesis": "Realiza [ʝ] en vez de [ʃ].",
-        "targets": [{"word": "Llovió", "phenomenon": "yeismo"}],
+        "targets": [{"word": "Llovió", "phenomenon": "yeismo", "position": "inicial"}],
     }
     base.update(overrides)
     return base
@@ -68,13 +69,15 @@ def test_committed_phrases_cover_every_category(repo_root: Path) -> None:
 
 
 def test_committed_target_counts(repo_root: Path) -> None:
-    # El presupuesto de mediciones de acento de v0: 20 targets de yeismo + 8 de rotica por
-    # hablante y seed, o sea 28 x 4 hablantes x 3 seeds x 3 modelos = 1008 mediciones. Si una
-    # frase pierde un target en una edicion, este test lo dice.
+    # El presupuesto de mediciones de acento de v0: 25 targets de yeismo (20 iniciales y 5
+    # intervocalicos) + 8 de rotica por hablante y seed. Si una frase pierde un target en una
+    # edicion, este test lo dice.
     phrases = load_phrases(repo_root / "configs" / "phrases.yaml")
     yeismo = sum(len(p.targets_for(Phenomenon.YEISMO)) for p in phrases)
     rhotic = sum(len(p.targets_for(Phenomenon.RHOTIC)) for p in phrases)
-    assert (yeismo, rhotic) == (20, 8)
+    assert (yeismo, rhotic) == (25, 8)
+    positions = Counter(t.position for p in phrases for t in p.targets_for(Phenomenon.YEISMO))
+    assert positions == {Position.INICIAL: 20, Position.INTERVOCALICA: 5}
 
 
 def test_committed_spoken_length_diverges_only_where_expected(repo_root: Path) -> None:
@@ -211,18 +214,38 @@ def test_spoken_length_falls_back_to_the_text() -> None:
 
 def test_target_word_must_appear_in_the_text() -> None:
     with pytest.raises(ValueError, match="does not appear"):
-        Phrase.model_validate(phrase_dict(targets=[{"word": "yerba", "phenomenon": "yeismo"}]))
+        Phrase.model_validate(
+            phrase_dict(targets=[{"word": "yerba", "phenomenon": "yeismo", "position": "inicial"}])
+        )
 
 
-def test_yeismo_target_must_be_word_initial() -> None:
-    # "calle" tiene el fonema intervocalico: medirlo exigiria un alineador forzado, que es justo
-    # lo que la restriccion de SPEC 5.1 evita.
-    with pytest.raises(ValueError, match="word-initial"):
-        Phrase.model_validate(phrase_dict(targets=[{"word": "calle", "phenomenon": "yeismo"}]))
+def test_yeismo_position_must_match_the_spelling() -> None:
+    # "calle" tiene el fonema entre vocales, no al inicio.
+    with pytest.raises(ValueError, match="no yeismo site in inicial"):
+        Phrase.model_validate(
+            phrase_dict(targets=[{"word": "calle", "phenomenon": "yeismo", "position": "inicial"}])
+        )
+
+
+def test_yeismo_target_needs_a_position() -> None:
+    with pytest.raises(ValueError, match="yeismo needs position"):
+        Phrase.model_validate(phrase_dict(targets=[{"word": "Llovió", "phenomenon": "yeismo"}]))
+
+
+def test_rhotic_target_takes_no_position() -> None:
+    with pytest.raises(ValueError, match="takes no position"):
+        Phrase.model_validate(
+            phrase_dict(
+                id="rot_003",
+                text="Recién llegó del río, con la ropa mojada.",
+                category=PhraseCategory.ROTICA.value,
+                targets=[{"word": "río", "phenomenon": "rhotic", "position": "inicial"}],
+            )
+        )
 
 
 def test_rhotic_target_must_be_word_initial() -> None:
-    with pytest.raises(ValueError, match="word-initial"):
+    with pytest.raises(ValueError, match="no rhotic site"):
         Phrase.model_validate(
             phrase_dict(
                 id="rot_005",
@@ -235,19 +258,37 @@ def test_rhotic_target_must_be_word_initial() -> None:
 
 def test_phenomenon_and_onset_must_agree() -> None:
     # "Llovió" empieza con ll: es un target de yeismo, no de rotica.
-    with pytest.raises(ValueError, match="not measurable as rhotic"):
+    with pytest.raises(ValueError, match="no rhotic site"):
         Phrase.model_validate(phrase_dict(targets=[{"word": "Llovió", "phenomenon": "rhotic"}]))
 
 
 def test_the_conjunction_y_is_never_a_target() -> None:
     # La "y" aislada es la vocal [i], no la fricativa.
-    with pytest.raises(ValueError, match="not measurable as yeismo"):
-        Phrase.model_validate(phrase_dict(targets=[{"word": "y", "phenomenon": "yeismo"}]))
+    with pytest.raises(ValueError, match="no yeismo site"):
+        Phrase.model_validate(
+            phrase_dict(targets=[{"word": "y", "phenomenon": "yeismo", "position": "inicial"}])
+        )
+
+
+def test_loanwords_are_never_a_target() -> None:
+    # "ballet" es [ba'le]: la grafia <ll> no es el fonema.
+    with pytest.raises(ValueError, match="no yeismo site"):
+        Phrase.model_validate(
+            phrase_dict(
+                id="ang_009",
+                text="Vimos el ballet entero sin movernos.",
+                targets=[{"word": "ballet", "phenomenon": "yeismo", "position": "intervocalica"}],
+            )
+        )
 
 
 def test_unknown_phenomenon_is_rejected() -> None:
     with pytest.raises(ValueError):
-        Phrase.model_validate(phrase_dict(targets=[{"word": "Llovió", "phenomenon": "sibilante"}]))
+        Phrase.model_validate(
+            phrase_dict(
+                targets=[{"word": "Llovió", "phenomenon": "sibilante", "position": "inicial"}]
+            )
+        )
 
 
 def test_yeismo_category_requires_a_yeismo_target() -> None:
@@ -264,7 +305,7 @@ def test_a_phrase_may_mix_phenomena() -> None:
             category=PhraseCategory.ROTICA.value,
             targets=[
                 {"word": "Recién", "phenomenon": "rhotic"},
-                {"word": "llegó", "phenomenon": "yeismo"},
+                {"word": "llegó", "phenomenon": "yeismo", "position": "inicial"},
                 {"word": "río", "phenomenon": "rhotic"},
                 {"word": "ropa", "phenomenon": "rhotic"},
             ],
@@ -281,27 +322,35 @@ def test_listen_only_phrases_may_have_no_targets() -> None:
             text="Bajate en Callao y caminá dos cuadras.",
             category=PhraseCategory.TOPONIMIA.value,
             targets=[],
-            notes="Fonema intervocálico: escucha manual.",
+            notes="Sin sitio medible: escucha manual.",
         )
     )
     assert phrase.targets == []
 
 
 @pytest.mark.parametrize(
-    "word,phenomenon,expected",
+    "word,phenomenon,position,expected",
     [
-        ("llave", Phenomenon.YEISMO, True),
-        ("Yo", Phenomenon.YEISMO, True),
-        ("y", Phenomenon.YEISMO, False),
-        ("calle", Phenomenon.YEISMO, False),
-        ("Jujuy", Phenomenon.YEISMO, False),
-        ("Retiro", Phenomenon.RHOTIC, True),
-        ("río", Phenomenon.RHOTIC, True),
-        ("perro", Phenomenon.RHOTIC, False),
+        ("llave", Phenomenon.YEISMO, Position.INICIAL, True),
+        ("Yo", Phenomenon.YEISMO, Position.INICIAL, True),
+        ("yuyo", Phenomenon.YEISMO, Position.INICIAL, True),
+        ("yuyo", Phenomenon.YEISMO, Position.INTERVOCALICA, True),
+        ("calle", Phenomenon.YEISMO, Position.INTERVOCALICA, True),
+        ("Callao", Phenomenon.YEISMO, Position.INTERVOCALICA, True),
+        ("mayoría", Phenomenon.YEISMO, Position.INTERVOCALICA, True),
+        ("calle", Phenomenon.YEISMO, Position.INICIAL, False),
+        ("y", Phenomenon.YEISMO, Position.INICIAL, False),
+        ("Jujuy", Phenomenon.YEISMO, Position.INTERVOCALICA, False),
+        ("ballet", Phenomenon.YEISMO, Position.INTERVOCALICA, False),
+        ("Retiro", Phenomenon.RHOTIC, None, True),
+        ("río", Phenomenon.RHOTIC, None, True),
+        ("perro", Phenomenon.RHOTIC, None, False),
     ],
 )
-def test_onset_detection(word: str, phenomenon: Phenomenon, expected: bool) -> None:
-    assert has_onset_for(word, phenomenon) is expected
+def test_site_detection(
+    word: str, phenomenon: Phenomenon, position: Position | None, expected: bool
+) -> None:
+    assert has_site_for(word, phenomenon, position) is expected
 
 
 def test_words_of_strips_punctuation_and_case() -> None:
@@ -458,9 +507,7 @@ def test_two_control_clips_are_required() -> None:
 def test_control_clip_cannot_reuse_a_reference() -> None:
     # Medir contra el propio prompt infla la similitud y rompe el techo.
     with pytest.raises(ValueError, match="more than one clip"):
-        Speaker.model_validate(
-            speaker_dict(control_clips=[{"path": "a.wav"}, {"path": "c2.wav"}])
-        )
+        Speaker.model_validate(speaker_dict(control_clips=[{"path": "a.wav"}, {"path": "c2.wav"}]))
 
 
 def test_clips_cannot_share_source_audio() -> None:

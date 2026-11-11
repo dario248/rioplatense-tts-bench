@@ -48,16 +48,27 @@ class PhraseCategory(str, Enum):
 
 
 class Phenomenon(str, Enum):
-    """A dialect feature measurable on a word-initial segment.
+    """A dialect feature measurable on a segment a forced aligner opens.
 
-    Both are measured the same way — spectral features over the segment that a WhisperX word
-    timestamp opens — which is why they share a target list instead of one field per feature.
+    Both are measured the same way — spectral features over that segment — which is why they
+    share a target list instead of one field per feature.
     """
 
     # /ʎ/ y /ʝ/ realizados como fricativa postalveolar, [ʒ] sonora o [ʃ] sorda.
     YEISMO = "yeismo"
     # Vibrante multiple: numero de oclusiones, asibilacion y duracion.
     RHOTIC = "rhotic"
+
+
+class Position(str, Enum):
+    """Where the yeismo phoneme sits in the word.
+
+    Las dos posiciones se miden contra anclas distintas: el intervocalico da unos 2 dB menos que
+    el inicial sobre el mismo hablante.
+    """
+
+    INICIAL = "inicial"
+    INTERVOCALICA = "intervocalica"
 
 
 class Gender(str, Enum):

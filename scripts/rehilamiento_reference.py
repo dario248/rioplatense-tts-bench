@@ -25,6 +25,7 @@ import torchaudio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from rtb.config import NOT_THE_PHONEME  # noqa: E402
 from rtb.metrics.audio_utils import load_resampled  # noqa: E402
 
 SAMPLE_RATE = 16_000
@@ -38,10 +39,6 @@ HIGH_HZ = 2_500.0
 # Rango de F0 donde buscar periodicidad. Cubre voz grave masculina y aguda femenina.
 F0_MIN_HZ = 70.0
 F0_MAX_HZ = 350.0
-
-# Prestamos y nombres propios donde <ll>/<y> no es /ʝ/: "ballet" es [ba'le]. Caen 20 a 37 dB por
-# debajo de su hablante, asi que entran como no rehilamiento si no se los saca.
-_NOT_THE_PHONEME = frozenset({"ballet", "fellini", "rolling", "you", "youtube", "hayek"})
 
 # El alfabeto de MMS_FA son 29 simbolos romanizados: sin tildes, sin ñ, sin dígitos.
 _ALIGNABLE = re.compile(r"^[a-z']+$")
@@ -80,7 +77,7 @@ def find_targets(words: list[str]) -> list[Target]:
     targets: list[Target] = []
     for index, word in enumerate(words):
         plain = strip_accents(word)
-        if plain == "y" or plain in _NOT_THE_PHONEME or not _ALIGNABLE.match(plain):
+        if plain == "y" or plain in NOT_THE_PHONEME or not _ALIGNABLE.match(plain):
             continue
         if plain.startswith("ll") or plain.startswith("y"):
             start = 0

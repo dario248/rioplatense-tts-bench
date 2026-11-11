@@ -9,8 +9,9 @@
 #   category                 una de las 10 categorias activas.
 #   failure_hypothesis       que se espera que falle y por que.
 #   targets                  segmentos medibles automaticamente. Lista de:
-#                              word:       palabra que EMPIEZA con ll/y (yeismo) o r (rhotic)
+#                              word:       palabra con ll/y (yeismo) o r inicial (rhotic)
 #                              phenomenon: yeismo | rhotic
+#                              position:   inicial | intervocalica. Solo en yeismo, obligatoria
 #   expected_verbalization   forma hablada esperada, ya normalizada. Obligatoria en
 #                            `normalizacion` y en cualquier frase con digitos.
 #   accepted_alternatives    (opcional) verbalizaciones igualmente validas. El CER se calcula
@@ -22,10 +23,9 @@
 # Reglas que valida el core (rtb.config) y que CI verifica en cada push:
 #   - `id` unico, sin "__" adentro, y no reutilizado de la lista de deprecados.
 #   - `category` dentro de las 10 activas.
-#   - cada `targets[].word` aparece en el texto como palabra entera y EMPIEZA con el fonema
-#     objetivo: el timestamp de palabra de WhisperX marca el inicio del segmento y no hace falta
-#     alineador forzado. Nunca se marca la conjuncion "y" (es la vocal [i]), la <y> final de
-#     "Jujuy" (semivocal), ni fonemas intervocalicos ("calle", "Callao", "perro", "mayo").
+#   - cada `targets[].word` aparece en el texto como palabra entera y tiene el fonema objetivo en
+#     la `position` declarada. Nunca se marca la conjuncion "y" (es la vocal [i]), la <y> final de
+#     "Jujuy" (semivocal), ni prestamos donde <ll>/<y> no es /ʝ/ ("ballet", "youtube").
 #   - `yeismo_rehilado` necesita al menos un target de yeismo.
 #   - `expected_verbalization` y `accepted_alternatives` ya vienen normalizadas (minusculas, sin
 #     tildes, sin puntuacion), con la misma funcion versionada que usa el pipeline de metricas.
@@ -54,10 +54,9 @@
     Realiza [ʝ] o [j] (aproximante palatal, castellano/mexicano neutro) en vez de
     la fricativa rioplatense.
   targets:
-    - {word: "Llovió", phenomenon: yeismo}
+    - {word: "Llovió", phenomenon: yeismo, position: inicial}
+    - {word: "calle", phenomenon: yeismo, position: intervocalica}
   n_words: 9
-  notes: >
-    "calle" tiene el fonema intervocálico: audible pero NO medible sin alineador forzado.
 
 - id: yei_002
   text: "Llamalo ya, que la llave está en el llavero."
@@ -66,10 +65,10 @@
     Densidad alta del fonema en una frase. Se espera realización inconsistente:
     algunos modelos rehílan la primera ocurrencia y relajan las siguientes.
   targets:
-    - {word: "Llamalo", phenomenon: yeismo}
-    - {word: "ya", phenomenon: yeismo}
-    - {word: "llave", phenomenon: yeismo}
-    - {word: "llavero", phenomenon: yeismo}
+    - {word: "Llamalo", phenomenon: yeismo, position: inicial}
+    - {word: "ya", phenomenon: yeismo, position: inicial}
+    - {word: "llave", phenomenon: yeismo, position: inicial}
+    - {word: "llavero", phenomenon: yeismo, position: inicial}
   n_words: 9
   notes: >
     "Llamalo" es imperativo voseante sin tilde (lla-MA-lo). Riesgo de "llámalo" por tuteo.
@@ -81,9 +80,9 @@
     "Yo" en posición inicial absoluta es el caso más limpio de medir y el más frecuente
     en habla real. Falla esperada: [jo] en vez de [ʃo].
   targets:
-    - {word: "Yo", phenomenon: yeismo}
-    - {word: "llevo", phenomenon: yeismo}
-    - {word: "llanta", phenomenon: yeismo}
+    - {word: "Yo", phenomenon: yeismo, position: inicial}
+    - {word: "llevo", phenomenon: yeismo, position: inicial}
+    - {word: "llanta", phenomenon: yeismo, position: inicial}
   n_words: 9
 
 - id: yei_004
@@ -93,8 +92,8 @@
     Grafía <y> inicial, uno de ellos préstamo. Riesgo adicional de acentuación
     peninsular en "yogur" (YO-gur vs yo-GUR).
   targets:
-    - {word: "yerba", phenomenon: yeismo}
-    - {word: "yogur", phenomenon: yeismo}
+    - {word: "yerba", phenomenon: yeismo, position: inicial}
+    - {word: "yogur", phenomenon: yeismo, position: inicial}
   n_words: 10
 
 - id: yei_005
@@ -104,9 +103,10 @@
     "yuyo" combina OOV regional con el fonema objetivo. Se espera degradación mayor
     que en palabras frecuentes.
   targets:
-    - {word: "yuyo", phenomenon: yeismo}
-    - {word: "ya", phenomenon: yeismo}
-    - {word: "llegó", phenomenon: yeismo}
+    - {word: "yuyo", phenomenon: yeismo, position: inicial}
+    - {word: "yuyo", phenomenon: yeismo, position: intervocalica}
+    - {word: "ya", phenomenon: yeismo, position: inicial}
+    - {word: "llegó", phenomenon: yeismo, position: inicial}
   n_words: 12
   notes: >
     Verificar que Whisper transcriba "yuyo" antes de tomar el timestamp; si falla,
@@ -119,8 +119,8 @@
     Ambos targets tras pausa: el contexto acústicamente más limpio del set.
     Control interno — si un modelo falla acá, falla en todos lados.
   targets:
-    - {word: "Llueve", phenomenon: yeismo}
-    - {word: "Llevate", phenomenon: yeismo}
+    - {word: "Llueve", phenomenon: yeismo, position: inicial}
+    - {word: "Llevate", phenomenon: yeismo, position: inicial}
   n_words: 5
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@
     Permite chequear si un modelo acierta en un rasgo dialectal y falla en el otro.
   targets:
     - {word: "Recién", phenomenon: rhotic}
-    - {word: "llegó", phenomenon: yeismo}
+    - {word: "llegó", phenomenon: yeismo, position: inicial}
     - {word: "río", phenomenon: rhotic}
     - {word: "ropa", phenomenon: rhotic}
   n_words: 8
@@ -284,7 +284,7 @@
     rehilamiento con muy poco contexto contra la de yei_006 (contexto normal):
     aísla el efecto del largo del input sobre la realización fonética.
   targets:
-    - {word: "Ya", phenomenon: yeismo}
+    - {word: "Ya", phenomenon: yeismo, position: inicial}
   n_words: 2
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -332,7 +332,8 @@
   failure_hypothesis: >
     Dificultad acumulada: OOV ("chamuyar", "guita") más voseo ("dejate" llana,
     "poné" oxítona).
-  targets: []
+  targets:
+    - {word: "chamuyar", phenomenon: yeismo, position: intervocalica}
   n_words: 10
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -345,10 +346,10 @@
   failure_hypothesis: >
     Test canónico del rehilamiento: [ka'ʃao] en Buenos Aires, [ka'ʎao] en España.
     Un modelo puede rehilar bien en palabras comunes y fallar acá.
-  targets: []
+  targets:
+    - {word: "Callao", phenomenon: yeismo, position: intervocalica}
   n_words: 7
   notes: >
-    Fonema intervocálico → no medible automáticamente. Escucha manual obligatoria.
     Probablemente el mejor audio de ejemplo del README.
 
 - id: top_002
@@ -447,7 +448,7 @@
     alternativas) y lectura de email con arroba y dominio compuesto.
     Caso realista de agente de voz.
   targets:
-    - {word: "Llamá", phenomenon: yeismo}
+    - {word: "Llamá", phenomenon: yeismo, position: inicial}
   n_words: 8
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -548,8 +549,9 @@
     Comparar estos targets contra los de yei_006 (tras pausa) y cor_004 (contexto
     mínimo) para cuantificar el efecto de la posición.
   targets:
-    - {word: "lluvia", phenomenon: yeismo}
-    - {word: "llegué", phenomenon: yeismo}
+    - {word: "Ayer", phenomenon: yeismo, position: intervocalica}
+    - {word: "lluvia", phenomenon: yeismo, position: inicial}
+    - {word: "llegué", phenomenon: yeismo, position: inicial}
   n_words: 30
 
 - id: lar_002

@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from rtb.schema import Gender, Phenomenon, PhraseCategory, count_words, validate_id_token
+from rtb.schema import Gender, Phenomenon, PhraseCategory, Position, count_words, validate_id_token
 from rtb.textnorm import is_normalized, normalize_text
 
 DEFAULT_PHRASES_PATH = Path("configs/phrases.yaml")
@@ -33,11 +33,17 @@ CONCATENATION_GAP_S = 0.25
 #   sim_*: la categoria s_implosiva se retiro de v0 (ver PhraseCategory).
 DEPRECATED_PHRASE_IDS = frozenset({"sim_001", "sim_002", "sim_003", "sim_004"})
 
-# Grafemas que en posicion inicial de palabra son siempre el fonema objetivo (SPEC 5.1).
-_YEISMO_ONSETS = ("ll", "y")
+# Grafemas que en inicial de palabra o entre vocales son siempre el fonema objetivo (SPEC 5.1).
+_YEISMO_GRAPHEMES = ("ll", "y")
 _RHOTIC_ONSET = "r"
+_VOWELS = "aeiouáéíóúü"
 # La conjuncion "y" aislada es la vocal [i], no la fricativa: nunca se marca.
 _NEVER_A_TARGET = frozenset({"y"})
+# Prestamos y nombres propios donde <ll>/<y> no es /ʝ/: "ballet" es [ba'le]. Miden 20 a 37 dB por
+# debajo de su hablante, asi que entran como no rehilamiento si no se los saca.
+NOT_THE_PHONEME = frozenset({"ballet", "fellini", "rolling", "you", "youtube", "hayek"})
+
+_INTERVOCALIC_RE = re.compile(f"[{_VOWELS}](?:ll|y)[{_VOWELS}]")
 
 _WORD_RE = re.compile(r"[^\W\d_]+(?:['’\-][^\W\d_]+)*")
 
@@ -67,18 +73,24 @@ def words_of(text: str) -> list[str]:
     return [match.group(0).lower() for match in _WORD_RE.finditer(text)]
 
 
-def has_onset_for(word: str, phenomenon: Phenomenon) -> bool:
-    """Whether the word BEGINS with the phoneme of `phenomenon`.
+def has_site_for(word: str, phenomenon: Phenomenon, position: Position | None) -> bool:
+    """Whether the word carries the phoneme of `phenomenon` at `position`.
 
-    Word-initial position is what makes the realization measurable without forced alignment
-    (SPEC 5.1).
+    These are the spellings where the grapheme fixes the phoneme with no ambiguity (SPEC 5.1).
+    `position` belongs to yeismo targets only; the rhotic is always word-initial.
     """
     lowered = word.lower()
     if lowered in _NEVER_A_TARGET:
         return False
-    if phenomenon is Phenomenon.YEISMO:
-        return lowered.startswith(_YEISMO_ONSETS)
-    return lowered.startswith(_RHOTIC_ONSET)
+    if phenomenon is not Phenomenon.YEISMO:
+        return position is None and lowered.startswith(_RHOTIC_ONSET)
+    if lowered in NOT_THE_PHONEME:
+        return False
+    if position is Position.INICIAL:
+        return lowered.startswith(_YEISMO_GRAPHEMES)
+    if position is Position.INTERVOCALICA:
+        return _INTERVOCALIC_RE.search(lowered) is not None
+    return False
 
 
 class RefClip(BaseModel):
@@ -163,12 +175,26 @@ class Speaker(BaseModel):
 
 
 class Target(BaseModel):
-    """A word-initial segment to measure, and which phenomenon is measured on it."""
+    """A segment to measure, which phenomenon is measured on it, and where in the word.
+
+    `position` es obligatoria en yeismo porque una misma palabra puede tener los dos sitios
+    —"yuyo"— y cada uno se mide contra su propia ancla.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     word: str = Field(min_length=1)
     phenomenon: Phenomenon
+    position: Position | None = None
+
+    @model_validator(mode="after")
+    def _check_position(self) -> Target:
+        needs = self.phenomenon is Phenomenon.YEISMO
+        if needs and self.position is None:
+            raise ValueError(f"target {self.word!r}: yeismo needs position (SPEC 5.1)")
+        if not needs and self.position is not None:
+            raise ValueError(f"target {self.word!r}: {self.phenomenon.value} takes no position")
+        return self
 
 
 class Phrase(BaseModel):
@@ -239,13 +265,12 @@ class Phrase(BaseModel):
                     f"phrase {self.id}: target word {target.word!r} does not appear as a whole "
                     "word in the text"
                 )
-            if not has_onset_for(lowered, target.phenomenon):
-                expected = "ll/y" if target.phenomenon is Phenomenon.YEISMO else "r"
+            if not has_site_for(lowered, target.phenomenon, target.position):
+                where = target.position.value if target.position else "inicial"
                 raise ValueError(
-                    f"phrase {self.id}: target {target.word!r} does not begin with {expected}, "
-                    f"so it is not measurable as {target.phenomenon.value}. SPEC 5.1 requires the "
-                    "phoneme to be word-initial; drop it from targets and note it for manual "
-                    "listening instead"
+                    f"phrase {self.id}: target {target.word!r} has no {target.phenomenon.value} "
+                    f"site in {where} position, so it is not measurable (SPEC 5.1); drop it from "
+                    "targets and note it for manual listening instead"
                 )
 
         if self.category is PhraseCategory.YEISMO_REHILADO and not self.targets_for(

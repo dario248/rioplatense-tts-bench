@@ -75,7 +75,7 @@ PHRASES_YAML = """
   category: yeismo_rehilado
   failure_hypothesis: "Realiza [ʝ] en vez de [ʃ]."
   targets:
-    - {word: "Llovió", phenomenon: yeismo}
+    - {word: "Llovió", phenomenon: yeismo, position: inicial}
 - id: vos_001
   text: "Vos tenés razón, pero no me lo dijiste antes."
   category: voseo
@@ -124,9 +124,7 @@ def mini_repo(tmp_path: Path) -> Path:
     (tmp_path / "configs" / "phrases.yaml").write_text(PHRASES_YAML, encoding="utf-8")
     (tmp_path / "configs" / "speakers.yaml").write_text(SPEAKERS_YAML, encoding="utf-8")
     (tmp_path / "configs" / "grid.yaml").write_text(GRID_YAML, encoding="utf-8")
-    (tmp_path / "configs" / "models" / "dummy.yaml").write_text(
-        DUMMY_MODEL_YAML, encoding="utf-8"
-    )
+    (tmp_path / "configs" / "models" / "dummy.yaml").write_text(DUMMY_MODEL_YAML, encoding="utf-8")
     for name in ("f01_ref0", "f01_ref1", "f01_ctrl0", "f01_ctrl1"):
         write_wav(tmp_path / "data" / "refs" / f"{name}.wav", seconds=5.0)
     return tmp_path

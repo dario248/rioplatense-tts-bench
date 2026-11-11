@@ -61,4 +61,4 @@
     Ninguna: es el brazo tratado de nor_005. Las alternativas se conservan porque agrupar
     el teléfono distinto del texto sigue siendo una lectura válida del número.
   targets:
-    - {word: "Llamá", phenomenon: yeismo}
+    - {word: "Llamá", phenomenon: yeismo, position: inicial}
