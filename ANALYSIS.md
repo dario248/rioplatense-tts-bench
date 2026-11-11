@@ -16,15 +16,15 @@ Registro de lo que los resultados de [`SPEC.md`](SPEC.md) dejaron sin resolver.
   piso.** Separa argentino de chileno, peruano y venezolano con **AUC 0.960**, y la escucha dio no
   en 12 de 12 antes de ver los números. `arm_05223` sale de la referencia por no ser porteño. El
   intervocálico entra y casi triplica las instancias. → A25 · A26 · A27.
-- **Próximo paso: 7.4 otra vez**, que está escrita con una sola distribución y ahora hay piso y
-  techo. Después el YAML que declara la población de referencia, y después el script.
-  → A25 · SPEC 7.4.
+- **Próximo paso: 7.4 otra vez**, que está escrita con una sola distribución y con la celda como
+  unidad de reporte; ahora hay piso y techo, y la celda no se publica. Después el YAML que declara
+  la población de referencia, y después el script. → A25 · A28 · SPEC 7.4.
 - **Bloqueado para publicar:** nada. `normalizacion` se publica como tabla propia con su método
   declarado al lado, así que las tasas del agregado no se mueven. → A6.
 - **Lo que v0 no afirma:** nada sobre la realización dialectal, y son **dos** las categorías ciegas a
   su propio fenómeno. Lo publicable es identidad, inteligibilidad, fallas y costo. → A1 · A24.
-- **Abiertos:** ★★★ A25 **medida; falta bajarla al SPEC** · ★★ A26 **decidida** · ★★ A11
-  **diferida** · ★ A7 · A8 · A9 · A17. A22, A23, A24 y A27 cerradas. Resueltas en noviembre: A6, A18,
+- **Abiertos:** ★★★ A25 y ★★ A28 **medidas; falta bajarlas al SPEC** · ★★ A26 **decidida** ·
+  ★★ A11 **diferida** · ★ A7 · A8 · A9 · A17. A22, A23, A24 y A27 cerradas. Resueltas en noviembre: A6, A18,
   A19, A20 y A21. Ninguna abierta mueve un número ya publicado: las tres nuevas mueven una métrica
   que todavía no existe.
   → §entradas.
@@ -1938,8 +1938,11 @@ juzgada 5 midió menos de +7. No da falsos positivos: el valor alto es evidencia
 contra +22.1; y el hablante más bajo de los 44 es varón. El rasgo es un cociente entre dos bandas
 del mismo fragmento, así que una voz más brillante sube las dos.
 
-**Cómo queda la métrica.** Mediana de varias instancias por celda, leída contra la distribución de
-referencia, sin umbral. El número que se reporta es **la diferencia contra el hablante que esa celda
+> **Acotado el 2026-11-11.** Vale para la zona alta, que es la única que se miró acá. En la zona
+> baja sí hay sesgo: medido sobre hablantes que no rehílan, las mujeres dan **+3.0 dB** (A25).
+
+**Cómo queda la métrica.** Mediana de varias instancias, leída contra la distribución de
+referencia, sin umbral. La unidad de reporte es el modelo y no la celda: → A28. El número que se reporta es **la diferencia contra el hablante que esa celda
 estaba clonando**, porque el objetivo del clonado es esa persona y no la mediana poblacional; la
 escalera de los 44 sirve para interpretar cuánto significa esa diferencia. Los cuatro hablantes de
 referencia caen entre el percentil 49 y el 74, todos arriba de la mediana, así que no hay que
@@ -2037,11 +2040,17 @@ mida como no rehilante es confirmación, no premisa. Sacándolo no queda solapam
 más bajo en −1.4 contra el no rehilante más alto en −3.5.
 
 **El colombiano queda afuera del piso, por disperso.** Sus medianas por hablante van de −16.6 a
-+22.2 y pisa las dos nubes. El mecanismo está medido y es sociolingüístico: **colombianas −0.2,
-colombianos −9.9**, casi diez decibeles. Es el mismo patrón documentado para Buenos Aires, donde el
-cambio lo lideraron las mujeres; en el control argentino no aparece —mujeres +18.7, varones +19.7—
-porque acá el cambio ya está completo en los dos. Lo que descalifica al colombiano como piso no es
-su media sino su ancho: un piso que se superpone con el techo no ancla nada.
++22.2 y pisa las dos nubes. Lo que lo descalifica no es su media sino su ancho: un piso que se
+superpone con el techo no ancla nada. Para esa decisión alcanza con el ancho, y no hace falta
+explicar de dónde sale.
+
+**De dónde sale el ancho, sin resolver.** La diferencia por sexo es grande: **colombianas −0.2,
+colombianos −9.9**. Pero a oído no aparece —las dos escuchas, cuatro mujeres y cuatro varones,
+dieron lo mismo: rehílan, suave—, y los diez decibeles caen enteros en la franja de −15 a 0 dB donde
+el rasgo y el oído ya se sabe que no coinciden. Así que puede ser una diferencia de pronunciación o
+puede ser el rasgo portándose distinto con voces femeninas en la zona baja. No está medido cuál. En
+el control argentino no hay brecha —mujeres +18.7, varones +19.7—, lo que es compatible con lo
+segundo pero no lo prueba: ahí los valores están lejos de esa franja.
 
 **Las anclas quedan así:**
 
@@ -2076,24 +2085,31 @@ segmento, que es su núcleo.
 **Respondida el 2026-11-10: conviene, con una referencia por grupo.**
 
 **Es la misma medida, con un corrimiento sistemático.** Pareado por hablante, el intervocálico da
-**−2.1 dB** de mediana respecto del inicial, 31 de 41 hablantes van para abajo, Wilcoxon
-**p = 0.0007**. Pero la correlación entre las dos medianas por hablante es **r = 0.809**: mide lo
+**−2.1 dB** de mediana respecto del inicial, 30 de 41 hablantes van para abajo, Wilcoxon
+**p = 0.0014**. Pero la correlación entre las dos medianas por hablante es **r = 0.807**: mide lo
 mismo sobre la misma persona. No son dos fenómenos, es un efecto de posición que hay que corregir
 antes de juntar.
 
 **Las instancias pasan de 612 a 1647** en los 44 argentinos.
 
-**La posición es un proxy grueso.** Sacando el efecto del hablante, y sobre palabras que dicen al
-menos 8 personas, **la palabra explica el 16 % de la varianza**, contra ~1.6 dB de la posición
-sola. Y adentro aparece el grafema: `<ll>` da +0.5 centrado y `<y>` da −0.9, **p = 1.5 × 10⁻⁸**.
-Cruza la posición: `ayuda`, `haya`, `vaya`, `mayoría` van todas abajo y `lleva`, `llano`, `llena`
-todas arriba.
+**El grafema importa, pero sólo en intervocálica.** Midiendo cada instancia contra la mediana de su
+propio hablante, las cuatro combinaciones quedan en inicial `<ll>` **+0.9 dB**, inicial `<y>`
+**+1.9**, intervocálica `<ll>` **0.0** e intervocálica `<y>` **−1.4**. En intervocálica la brecha
+entre grafemas es de 1.4 dB y es firme (**p = 1.9 × 10⁻⁶**); en inicial es de 0.9 dB en el sentido
+contrario y no se distingue del ruido (p = 0.09). El grafema y la posición no se suman: hay que
+mirarlos juntos, y por eso la referencia va en **cuatro grupos** y no en dos correcciones
+encadenadas.
 
-**Una referencia por palabra no es viable.** Sólo **10 de los 20 targets** del set de frases tienen
-8 o más hablantes en el corpus: `lluvia` 40, `llegue` 38, `llovió` 38, `llegó` 37, `yo` 27, `ya` 21,
+**La palabra agrega poco encima de eso.** Sobre palabras que dicen al menos 8 personas, las medianas
+por palabra se reparten en un IQR de **3.0 dB** —de `ayudar` −6.5 a `lleva` +9.3 en los extremos—,
+mientras que lo que queda adentro de una misma palabra es un IQR de **7.6 dB**. La palabra corre la
+mediana unos pocos decibeles; la variación entre instancias del mismo hablante diciendo la misma
+palabra es más del doble.
+
+**Y una referencia por palabra tampoco es viable.** Sólo **10 de los 20 targets** del set de frases
+tienen 8 o más hablantes en el corpus: `lluvia` 40, `llegue` 38, `llovió` 38, `llegó` 37, `yo` 27, `ya` 21,
 `llama` 14. Faltan `llanta`, `yerba`, `yogur`, `yuyo`, `llavero`, `llave`, `llamalo`, `llevate`, y
-`llueve` con 7 y `llevo` con 3. Se agrupa por **posición y grafema**: cuatro grupos, los 20 targets
-cubiertos.
+`llueve` con 7 y `llevo` con 3. Los cuatro grupos, en cambio, cubren los 20 targets.
 
 **Lo que atenúa el problema.** Los seis modelos dicen exactamente las mismas frases, así que el
 efecto de la palabra se cancela en la comparación entre modelos. No se cancela contra los hablantes
@@ -2124,11 +2140,19 @@ error que hay que detectar.
 
 **Respondida el 2026-11-10: no se separan, y las dos vías que probé empeoran las cosas.**
 
-**Intento 1 — medir la sonoridad aparte.** Periodicidad por autocorrelación normalizada en el rango
-de F0, en la misma ventana. No aporta un eje nuevo: arriba de +5 dB es **plana en 0.21** sin importar
-el valor, y abajo sube junto con el dB —0.44 entre −5 y +5, 0.65 abajo de −5—. De las 220 instancias
-bajo +5 dB, sólo 16 son sordas. Dice casi lo mismo que el dB con otra unidad, y no distingue [ʒ] de
-[ʝ] porque los dos son sonoros. **Fuera de la métrica: un solo rasgo.**
+**Intento 1 — medir la sonoridad aparte.** Si la sonoridad se pudiera medir por su cuenta, se podría
+descontar del denominador lo que mete la voz y dejar sólo la fricción. Se midió con autocorrelación
+normalizada en el rango de F0, sobre la misma ventana que el rasgo: da entre 0 y 1, cuanto más alto
+más periódico es el sonido, es decir más vibración de cuerdas y menos ruido.
+
+**No es un eje nuevo, es el mismo dicho de otra forma.** Arriba de +5 dB la periodicidad se queda
+**plana en 0.21** sin importar cuánto dé el rasgo; abajo de ahí sube a medida que el dB baja —0.44
+entre −5 y +5, 0.65 abajo de −5—. Una medida que se mueve con la otra no agrega información: saber
+la periodicidad no dice nada que el dB no dijera ya.
+
+**Y tampoco hace el trabajo para el que se la quería.** Lo que había que distinguir es [ʒ] de [ʝ], y
+los dos son sonoros: de las 220 instancias bajo +5 dB, apenas 16 son sordas. La periodicidad separa
+sordas de sonoras, que no es el corte que hace falta. **Fuera de la métrica: un solo rasgo.**
 
 Lo único que dejó: el quiebre en +5 dB, que resultó ser el mismo punto donde A25 encuentra el mejor
 corte entre variedades.
@@ -2154,6 +2178,63 @@ nuevo −14.2, al fondo, por la vocal tónica inflando el denominador.
 **Qué queda.** El cociente agudos sobre graves se queda como único rasgo. Que no distinga un [ʒ]
 fricativo de una `y` aproximante es una limitación a declarar: hoy no hay con qué, y A25 muestra que
 a nivel de población la separación igual se consigue.
+
+---
+
+## A28 ★★ — La métrica tiene tres resoluciones distintas, y la celda no es publicable
+
+**Pregunta.** ¿Con qué precisión distingue la métrica, y a qué nivel se reporta?
+
+**Por qué importa.** Sin eso, dos modelos separados por dos decibeles se publican como ranking
+cuando pueden estar empatados. Y A23 había fijado la celda —modelo, hablante, seed— como unidad de
+reporte sin estimar cuánto ruido tiene.
+
+**Respondida el 2026-11-11: son tres límites distintos y conviene no mezclarlos.**
+
+| qué se afirma | límite | de dónde sale |
+|---|---|---|
+| modelo A contra modelo B | **2.4 dB** | las 240 instancias del grid; las anclas se cancelan |
+| posición absoluta en la escala | **~5.6 dB** | el IC95 del techo, ±2.8 dB |
+| una celda suelta | **8.6 dB** | 20 instancias |
+
+**Las anclas se cancelan en el ranking.** Los dos modelos se miden contra el mismo techo, así que un
+error en estimarlo los corre a los dos para el mismo lado. El ancho del techo limita las
+afirmaciones absolutas —«llega al 80 % del porteño real»— y no el orden, que es lo que el benchmark
+hace la mayor parte del tiempo.
+
+**La celda no se publica.** Con 20 instancias el IC95 es 8.6 dB sobre un recorrido de 33.9: un
+cuarto de la escala. Decir que un modelo rehíla mejor clonando a `slr61_f_01` que a `slr61_m_02`
+sería ruido. Queda como unidad de medición y la de reporte es el modelo, juntando sus 240
+instancias, donde el IC95 baja a 2.4 dB.
+
+| instancias | IC95 |
+|---|---|
+| 10 | 11.7 dB |
+| 20 | 8.6 dB |
+| 60 | 5.1 dB |
+| 240 | 2.4 dB |
+
+**Dónde conviene invertir.** La precisión del ranking va con la raíz de las instancias. Sumar los
+intervocálicos (A26) lleva las 240 a 300 y el límite a **~2.2 dB**: el set v0 tiene 20 sitios
+iniciales y sólo 5 intervocálicos —`calle`, `yuyo`, `chamuyar`, `Callao`, `Ayer`—, así que la
+ganancia es chica. La palanca está en las frases nuevas de v1, donde los targets se eligen. Las
+afirmaciones absolutas no mejoran por ahí: ésas necesitan **más hablantes porteños**, porque el
+techo tiene 43 contra los 92 del piso y además están más dispersos entre sí. Limpiar el rasgo no
+mueve ninguna de las dos (A27).
+
+**Los cuatro grupos no parten ese total.** La agrupación por posición y grafema elige contra qué
+referencia se normaliza cada instancia, no en cuántos pedazos se corta el modelo: las 300 se juntan
+después en un solo número. Lo que tiene que alcanzar es la referencia de cada grupo, y alcanza —el
+más flaco es inicial `<y>` con 124 instancias de techo y 391 de piso—. Del lado del set el reparto
+queda desparejo, 156 instancias por modelo en inicial `<ll>` contra 24 en intervocálica `<ll>`, que
+es la otra cara de la ganancia chica.
+
+**Límites de lo medido.** Los IC95 salen de remuestreo sobre los hablantes reales del corpus,
+tomados como proxy del ruido que va a tener una celda sintética. Un modelo puede ser más consistente
+o menos que una persona; el número se confirma cuando existan las mediciones de los modelos.
+
+**Qué queda.** Reescribir 7.4, que fija la celda como unidad de reporte. Publicar la resolución al
+lado de la tabla: si dos modelos salen a menos de 2.4 dB, empatan.
 
 ---
 
