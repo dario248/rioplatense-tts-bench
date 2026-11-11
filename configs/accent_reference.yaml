@@ -1,0 +1,37 @@
+# Poblacion de las dos anclas de la metrica de yeismo (SPEC 7.4).
+#
+# Acá va QUIEN entra en cada ancla, no los valores: las medianas se derivan en tiempo de ejecucion
+# de `instances`, que guarda las instancias crudas de los 169 hablantes sin filtrar. Asi cambiar
+# una exclusion no obliga a rehacer los 35 minutos de medicion.
+#
+# Procedencia de las instancias: OpenSLR SLR61 con los silencios recortados, el mismo corpus del
+# que salen los hablantes de referencia (configs/speakers.yaml).
+#
+# `version` va a `metric_version` de cada fila de metricas: mover una exclusion de acá mueve la
+# escala entera, y eso tiene que ser detectable.
+version: "1"
+
+instances: data/accent/reference.jsonl
+
+# Cada instancia se normaliza contra el ancla de SU grupo.
+groups_by: [position, grapheme]
+
+# Techo: habla porteña.
+ceiling:
+  speaker_prefixes: [arf_, arm_]
+  exclude:
+    # No se excluye por su valor, que es el rasgo bajo validacion: seria circular.
+    - speaker: arm_05223
+      reason: "rotica no porteña"
+
+# Piso: habla que no rehila.
+floor:
+  speaker_prefixes: [clm_, clf_, pem_, pef_, vem_, vef_]
+  # El piso que se aplica es el del sexo del hablante clonado: corrige un sesgo del instrumento,
+  # no una diferencia de pronunciacion.
+  split_by: sex
+
+# Variedades del corpus que no entran en ninguna ancla.
+excluded_varieties:
+  - prefixes: [com_, cof_]
+    reason: "rehila suave y con demasiado ancho"

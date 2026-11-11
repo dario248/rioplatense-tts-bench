@@ -63,8 +63,7 @@ class Phenomenon(str, Enum):
 class Position(str, Enum):
     """Where the yeismo phoneme sits in the word.
 
-    Las dos posiciones se miden contra anclas distintas: el intervocalico da unos 2 dB menos que
-    el inicial sobre el mismo hablante.
+    Las dos posiciones se miden contra anclas distintas (SPEC 7.4).
     """
 
     INICIAL = "inicial"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -22,6 +22,7 @@ DEFAULT_PHRASES_PATH = Path("configs/phrases.yaml")
 DEFAULT_SPEAKERS_PATH = Path("configs/speakers.yaml")
 DEFAULT_GRID_PATH = Path("configs/grid.yaml")
 DEFAULT_THRESHOLDS_PATH = Path("configs/thresholds.yaml")
+DEFAULT_ACCENT_REFERENCE_PATH = Path("configs/accent_reference.yaml")
 
 # Silencio que `scripts/build_reference_clips.py` inserta entre utterances concatenadas. Vive acá
 # porque la etapa de metricas lo necesita para descontarlo al estimar la tasa de habla real: sin
@@ -172,6 +173,73 @@ class Speaker(BaseModel):
             raise ConfigError(
                 f"speaker {self.id} has {len(self.ref_clips)} ref_clips, index {index} requested"
             ) from err
+
+
+class AnchorExclusion(BaseModel):
+    """One speaker kept out of an anchor, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    speaker: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class Anchor(BaseModel):
+    """The population of one end of the accent scale (SPEC 7.4).
+
+    `split_by: sex` corrige un sesgo del instrumento, no una diferencia de pronunciacion.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    speaker_prefixes: list[str] = Field(min_length=1)
+    exclude: list[AnchorExclusion] = Field(default_factory=list)
+    split_by: Literal["sex"] | None = None
+
+    def holds(self, speaker: str) -> bool:
+        if any(item.speaker == speaker for item in self.exclude):
+            return False
+        return speaker.startswith(tuple(self.speaker_prefixes))
+
+
+class ExcludedVariety(BaseModel):
+    """A variety of the corpus that serves as neither anchor, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prefixes: list[str] = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class AccentReference(BaseModel):
+    """Who belongs to each anchor. The values are derived from `instances`, never written here."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = Field(min_length=1)
+    instances: Path
+    groups_by: list[str] = Field(min_length=1)
+    ceiling: Anchor
+    floor: Anchor
+    excluded_varieties: list[ExcludedVariety] = Field(default_factory=list)
+
+    def anchor_of(self, speaker: str) -> str | None:
+        """Which anchor the speaker feeds, or None when the file leaves them out."""
+        if self.ceiling.holds(speaker):
+            return "ceiling"
+        return "floor" if self.floor.holds(speaker) else None
+
+    @model_validator(mode="after")
+    def _check_populations(self) -> AccentReference:
+        shared = set(self.ceiling.speaker_prefixes) & set(self.floor.speaker_prefixes)
+        if shared:
+            raise ValueError(f"prefixes in both anchors: {sorted(shared)}")
+        anchored = set(self.ceiling.speaker_prefixes) | set(self.floor.speaker_prefixes)
+        for variety in self.excluded_varieties:
+            clash = anchored & set(variety.prefixes)
+            if clash:
+                raise ValueError(f"prefixes both anchored and excluded: {sorted(clash)}")
+        return self
 
 
 class Target(BaseModel):
@@ -636,3 +704,14 @@ def categories_covered(phrases: Iterable[Phrase]) -> dict[str, int]:
     for phrase in phrases:
         counts[phrase.category.value] += 1
     return counts
+
+
+def load_accent_reference(path: Path | str = DEFAULT_ACCENT_REFERENCE_PATH) -> AccentReference:
+    path = Path(path)
+    data = _load_yaml(path)
+    if not isinstance(data, dict):
+        raise ConfigError(f"{path}: expected a YAML mapping, got {type(data).__name__}")
+    try:
+        return AccentReference.model_validate(data)
+    except Exception as err:  # noqa: BLE001
+        raise ConfigError(f"{path}: {err}") from err

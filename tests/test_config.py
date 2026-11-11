@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from pathlib import Path
 
@@ -9,11 +10,13 @@ import pytest
 
 from rtb.config import (
     DEPRECATED_PHRASE_IDS,
+    AccentReference,
     ConfigError,
     Phrase,
     Speaker,
     categories_covered,
     has_site_for,
+    load_accent_reference,
     load_grid,
     load_model_config,
     load_phrases,
@@ -600,3 +603,34 @@ manifest_path: data/manifests/x.jsonl
 def test_missing_file_is_a_clear_error(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="not found"):
         load_phrases(tmp_path / "absent.yaml")
+
+
+# ── anclas de acento ─────────────────────────────────────────────────────────────────────────
+
+
+def test_committed_accent_reference_resolves_every_speaker(repo_root: Path) -> None:
+    # Las anclas son la escala entera de 7.4: si un prefijo o una exclusion cambia, el numero
+    # publicado se mueve sin que nada falle. Este test fija el reparto contra el archivo medido.
+    reference = load_accent_reference(repo_root / "configs" / "accent_reference.yaml")
+    speakers = {
+        json.loads(line)["speaker"]
+        for line in (repo_root / reference.instances).read_text().splitlines()
+    }
+    counts = Counter(reference.anchor_of(speaker) for speaker in speakers)
+    assert counts == {"ceiling": 43, "floor": 92, None: 34}
+    assert reference.anchor_of("arm_05223") is None
+    assert reference.floor.split_by == "sex"
+
+
+def test_an_anchor_cannot_claim_an_excluded_variety() -> None:
+    with pytest.raises(ValueError, match="both anchored and excluded"):
+        AccentReference.model_validate(
+            {
+                "version": "1",
+                "instances": "data/accent/reference.jsonl",
+                "groups_by": ["position"],
+                "ceiling": {"speaker_prefixes": ["arf_"]},
+                "floor": {"speaker_prefixes": ["clm_"]},
+                "excluded_varieties": [{"prefixes": ["arf_"], "reason": "x"}],
+            }
+        )
