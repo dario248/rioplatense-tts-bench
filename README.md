@@ -114,8 +114,9 @@ rule, and with the sweep of its threshold. Details below.
 ## Listen
 
 Thirty curated clips in [`data/samples/`](data/samples/), one folder per claim, each with the
-`generation_id` that produced it and the numbers it is evidence of. The shortest path through
-them:
+`generation_id` that produced it and the numbers it is evidence of. They play in the browser at
+**[dario248.github.io/rioplatense-tts-bench](https://dario248.github.io/rioplatense-tts-bench/)**.
+The shortest path through them:
 
 - [A perfect transcript can hide a broken clip](data/samples/01_the-text-is-perfect-the-audio-is-not/)
   — WER 0.000, and almost eight seconds of invented speech after the sentence ends.

@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rioplatense-tts-bench — listening set</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #fcfcfb; --card: #ffffff; --ink: #0b0b0b; --ink2: #3f3e3b; --muted: #7a7973;
+  --rule: #e6e5e0; --accent: #2a78d6; --ref: #eb6834;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413; --card: #1c1c1a; --ink: #f0efec; --ink2: #c3c2b7; --muted: #8e8d85;
+    --rule: #2e2e2b; --accent: #3987e5; --ref: #d95926;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5;
+  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 56rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+h1 { font-size: 1.6rem; margin: 0 0 .4rem; letter-spacing: -.01em; }
+h2 { font-size: 1.15rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
+p { color: var(--ink2); margin: 0 0 1rem; }
+a { color: var(--accent); }
+.lede { font-size: .95rem; }
+.meta { color: var(--muted); font-size: .85rem; }
+section { border-top: 1px solid var(--rule); padding-top: 1.5rem; margin-top: 2rem; }
+.clip {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+  padding: .75rem .9rem; margin-bottom: .6rem;
+}
+.clip.ref { border-left: 3px solid var(--ref); }
+.clip-head { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: baseline; }
+.model { font-weight: 700; font-size: .95rem; }
+.nums { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.heard { color: var(--ink2); font-size: .88rem; margin: .35rem 0 .5rem; }
+.heard span { color: var(--muted); }
+audio { width: 100%; height: 34px; display: block; }
+code { font-size: .78rem; color: var(--muted); word-break: break-all; }
+@media (max-width: 480px) { .wrap { padding: 1.5rem 1rem 3rem; } }
+</style>
+</head>
+<body><div class=wrap>
+<h1>Zero-shot TTS in Rioplatense Spanish — the listening set</h1>
+<p class=lede>Every clip here is the audible evidence of something measured in the <a href="https://github.com/dario248/rioplatense-tts-bench">benchmark</a>, and carries the <code>generation_id</code> that produced it, so it can be regenerated from the manifest and checked against its number. Clips marked <em>real speaker</em> are recordings from <a href="https://openslr.org/61/">OpenSLR SLR61</a> (CC BY-SA 4.0), included because a cloned voice cannot be judged without the original.</p>
+<section id="01_the-text-is-perfect-the-audio-is-not">
+<h2>A perfect transcript can hide a broken clip</h2>
+<p>Both score WER 0.000. In the first, invented speech runs for almost eight seconds after the sentence ends and the loudest moment of the clip is in that tail; in the second, half the clip is vocoder noise. No text metric sees either one.</p>
+<div class="clip ref">
+<div class=clip-head>
+<span class=model>slr61_f_02</span>
+<span class=nums>real speaker</span>
+</div>
+
+<audio controls preload=none src="data/samples/01_the-text-is-perfect-the-audio-is-not/slr61_f_02__reference.wav"></audio>
+<code>slr61_f_02__reference.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 7.88 s · cosine 0.591</span>
+</div>
+<p class=heard><span>heard:</span> “se armó un quilombo bárbaro en la esquina.”</p>
+<audio controls preload=none src="data/samples/01_the-text-is-perfect-the-audio-is-not/xtts_v2__slr61_f_02__lex_001__s5678__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__lex_001__s5678__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Chatterbox v3</span>
+<span class=nums>WER 0.000 · tail 3.14 s · cosine 0.740</span>
+</div>
+<p class=heard><span>heard:</span> “Mi hermano, el que vive en Córdoba, viene el sábado.”</p>
+<audio controls preload=none src="data/samples/01_the-text-is-perfect-the-audio-is-not/chatterbox_v3__slr61_f_02__pro_003__s5678__ref0.wav"></audio>
+<code>chatterbox_v3__slr61_f_02__pro_003__s5678__ref0.wav</code>
+</div>
+</section>
+<section id="02_a-catastrophic-failure">
+<h2>Twenty-four seconds for one word</h2>
+<p>The prompt is '¿Cómo?'. One model answers with 24 seconds of word salad, the other with two clean seconds. An aggregate median shows neither.</p>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Chatterbox v3</span>
+<span class=nums>WER 18.000 · tail 6.86 s · cosine 0.780</span>
+</div>
+<p class=heard><span>heard:</span> “como alablosación y quesadestanción y quesación de las acciones que miente, alabridad y alabrida, alabridad de la fartesión. Alabrida.”</p>
+<audio controls preload=none src="data/samples/02_a-catastrophic-failure/chatterbox_v3__slr61_f_02__cor_002__s5678__ref0.wav"></audio>
+<code>chatterbox_v3__slr61_f_02__cor_002__s5678__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Qwen3-TTS</span>
+<span class=nums>WER 0.000 · tail 0.14 s · cosine 0.305</span>
+</div>
+<p class=heard><span>heard:</span> “¿Cómo?”</p>
+<audio controls preload=none src="data/samples/02_a-catastrophic-failure/qwen3_tts__slr61_f_02__cor_002__s5678__ref0.wav"></audio>
+<code>qwen3_tts__slr61_f_02__cor_002__s5678__ref0.wav</code>
+</div>
+</section>
+<section id="03_one-label-two-defects">
+<h2>The tail is two different defects under one name</h2>
+<p>The first invents words — the ASR transcribes the '¡Oh, no!' nobody asked for. The second is a vocoder that will not stop: noise, no speech. For an agent, one is a wrong answer and the other is a turn that never closes.</p>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.300 · tail 8.02 s · cosine 0.582</span>
+</div>
+<p class=heard><span>heard:</span> “Dejate de chamullar y poné la guita sobre la mesa. ¡Oh, no!”</p>
+<audio controls preload=none src="data/samples/03_one-label-two-defects/xtts_v2__slr61_f_02__lex_005__s1234__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__lex_005__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Chatterbox v3</span>
+<span class=nums>WER 0.000 · tail 2.72 s · cosine 0.632</span>
+</div>
+<p class=heard><span>heard:</span> “Me tomé el bondí hasta el laburo.”</p>
+<audio controls preload=none src="data/samples/03_one-label-two-defects/chatterbox_v3__slr61_f_02__lex_002__s9012__ref0.wav"></audio>
+<code>chatterbox_v3__slr61_f_02__lex_002__s9012__ref0.wav</code>
+</div>
+</section>
+<section id="04_short-utterances-break-cloning">
+<h2>Under a second, identity collapses</h2>
+<p>Two words, understood perfectly, no failure flag — and the speaker embedding scores them at half the model's own average. The second one lands below the floor of the scale: for a single word, the instrument says it is a different person.</p>
+<div class="clip ref">
+<div class=clip-head>
+<span class=model>slr61_f_01</span>
+<span class=nums>real speaker</span>
+</div>
+
+<audio controls preload=none src="data/samples/04_short-utterances-break-cloning/slr61_f_01__reference.wav"></audio>
+<code>slr61_f_01__reference.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.22 s · cosine 0.322</span>
+</div>
+<p class=heard><span>heard:</span> “Ya está.”</p>
+<audio controls preload=none src="data/samples/04_short-utterances-break-cloning/xtts_v2__slr61_f_02__cor_004__s9012__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__cor_004__s9012__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.14 s · cosine -0.015</span>
+</div>
+<p class=heard><span>heard:</span> “¿Cómo?”</p>
+<audio controls preload=none src="data/samples/04_short-utterances-break-cloning/sintetica__slr61_f_01__cor_002__s1234__ref0.wav"></audio>
+<code>sintetica__slr61_f_01__cor_002__s1234__ref0.wav</code>
+</div>
+</section>
+<section id="05_what-the-metric-cannot-hear">
+<h2>Eight pronunciations, eight perfect scores</h2>
+<p>'Bajate en Callao y caminá dos cuadras' is the canonical test of the Rioplatense [ʃ]: the phrase set marks it as unmeasurable by alignment because the phoneme is intervocalic. 'Fuimos de Ushuaia a Neuquén en auto' is measured automatically and every model scores WER 0.000 on it. Four models, two phrases, eight pronunciations, eight perfect scores. This is where the dialect question lives in v0.</p>
+<div class="clip ref">
+<div class=clip-head>
+<span class=model>slr61_f_02</span>
+<span class=nums>real speaker</span>
+</div>
+
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/slr61_f_02__reference.wav"></audio>
+<code>slr61_f_02__reference.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.06 s · cosine 0.515</span>
+</div>
+<p class=heard><span>heard:</span> “Bájate en callao y camina dos cuadras.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/xtts_v2__slr61_f_02__top_001__s1234__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__top_001__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Qwen3-TTS</span>
+<span class=nums>WER 0.000 · tail 0.04 s · cosine 0.656</span>
+</div>
+<p class=heard><span>heard:</span> “Bajate en callao y camina dos cuadras.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/qwen3_tts__slr61_f_02__top_001__s1234__ref0.wav"></audio>
+<code>qwen3_tts__slr61_f_02__top_001__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Chatterbox v3</span>
+<span class=nums>WER 0.000 · tail 0.06 s · cosine 0.682</span>
+</div>
+<p class=heard><span>heard:</span> “Bajate en callao y camina dos cuadras.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/chatterbox_v3__slr61_f_02__top_001__s1234__ref0.wav"></audio>
+<code>chatterbox_v3__slr61_f_02__top_001__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.06 s · cosine 0.452</span>
+</div>
+<p class=heard><span>heard:</span> “Bájate en callao y camina dos cuadras.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/sintetica__slr61_f_02__top_001__s1234__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__top_001__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.30 s · cosine 0.480</span>
+</div>
+<p class=heard><span>heard:</span> “Fuimos de Ushuaia a Neuquén, en auto.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/xtts_v2__slr61_f_02__top_003__s1234__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__top_003__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Qwen3-TTS</span>
+<span class=nums>WER 0.000 · tail 0.16 s · cosine 0.653</span>
+</div>
+<p class=heard><span>heard:</span> “Fuimos de Ushuaia a Neuquén en auto.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/qwen3_tts__slr61_f_02__top_003__s1234__ref0.wav"></audio>
+<code>qwen3_tts__slr61_f_02__top_003__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Chatterbox v3</span>
+<span class=nums>WER 0.000 · tail 1.10 s · cosine 0.615</span>
+</div>
+<p class=heard><span>heard:</span> “Fuimos de Ushuaia a Neuquén en auto.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/chatterbox_v3__slr61_f_02__top_003__s1234__ref0.wav"></audio>
+<code>chatterbox_v3__slr61_f_02__top_003__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.20 s · cosine 0.490</span>
+</div>
+<p class=heard><span>heard:</span> “Fuimos de Ushuaia a Neuquén en auto.”</p>
+<audio controls preload=none src="data/samples/05_what-the-metric-cannot-hear/sintetica__slr61_f_02__top_003__s1234__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__top_003__s1234__ref0.wav</code>
+</div>
+</section>
+<section id="06_identity-has-a-scale">
+<h2>The best and the worst clone, against the original</h2>
+<p>Same sentence, same speaker, both understood perfectly and neither flagged. The gap between them is the widest in the corpus. Listen to the reference first: without the original, 'sounds similar' means nothing.</p>
+<div class="clip ref">
+<div class=clip-head>
+<span class=model>slr61_f_02</span>
+<span class=nums>real speaker</span>
+</div>
+
+<audio controls preload=none src="data/samples/06_identity-has-a-scale/slr61_f_02__reference.wav"></audio>
+<code>slr61_f_02__reference.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Qwen3-TTS</span>
+<span class=nums>WER 0.000 · tail 0.14 s · cosine 0.745</span>
+</div>
+<p class=heard><span>heard:</span> “Vos tenés razón, pero no me lo dijiste antes.”</p>
+<audio controls preload=none src="data/samples/06_identity-has-a-scale/qwen3_tts__slr61_f_02__vos_001__s9012__ref0.wav"></audio>
+<code>qwen3_tts__slr61_f_02__vos_001__s9012__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.18 s · cosine 0.362</span>
+</div>
+<p class=heard><span>heard:</span> “Vos tenés razón, pero no me lo dijiste antes.”</p>
+<audio controls preload=none src="data/samples/06_identity-has-a-scale/xtts_v2__slr61_f_02__vos_001__s9012__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__vos_001__s9012__ref0.wav</code>
+</div>
+</section>
+<section id="07_what-identity-costs">
+<h2>The model that does not clone is the one that runs on a CPU</h2>
+<p>The same long sentence from the best zero-shot cloner and from a fine-tune that picks its voice by id. The second is 115× cheaper on CPU and needs 16× less VRAM, and it is the only one of the four that runs faster than real time without a GPU.</p>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Qwen3-TTS</span>
+<span class=nums>WER 0.000 · tail 0.32 s · cosine 0.827</span>
+</div>
+<p class=heard><span>heard:</span> “El sistema toma el audio del usuario, lo transcribe con un modelo de reconocimiento, se lo pasa al modelo de lenguaje y después sintetiza la respuesta. Todo en menos de un segundo.”</p>
+<audio controls preload=none src="data/samples/07_what-identity-costs/qwen3_tts__slr61_f_02__lar_002__s1234__ref0.wav"></audio>
+<code>qwen3_tts__slr61_f_02__lar_002__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.28 s · cosine 0.744</span>
+</div>
+<p class=heard><span>heard:</span> “El sistema toma el audio del usuario, lo transcribe con un modelo de reconocimiento, se lo pasa al modelo de lenguaje y después sintetiza la respuesta, todo en menos de un segundo.”</p>
+<audio controls preload=none src="data/samples/07_what-identity-costs/sintetica__slr61_f_02__lar_002__s1234__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__lar_002__s1234__ref0.wav</code>
+</div>
+</section>
+<section id="08_same-input-same-output">
+<h2>Three seeds: one model varies, the other does not</h2>
+<p>The same cell rendered with three seeds. The zero-shot model gives three different clips — cosine 0.613, 0.541, 0.458 — and the fine-tune gives the same audio three times, identical to the fifth decimal. That is what decides whether you can cache.</p>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.12 s · cosine 0.613</span>
+</div>
+<p class=heard><span>heard:</span> “Llámalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/xtts_v2__slr61_f_02__yei_002__s1234__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__yei_002__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.10 s · cosine 0.541</span>
+</div>
+<p class=heard><span>heard:</span> “Llámalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/xtts_v2__slr61_f_02__yei_002__s5678__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__yei_002__s5678__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>XTTS-v2</span>
+<span class=nums>WER 0.000 · tail 0.12 s · cosine 0.458</span>
+</div>
+<p class=heard><span>heard:</span> “Llamalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/xtts_v2__slr61_f_02__yei_002__s9012__ref0.wav"></audio>
+<code>xtts_v2__slr61_f_02__yei_002__s9012__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.18 s · cosine 0.425</span>
+</div>
+<p class=heard><span>heard:</span> “Llámalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/sintetica__slr61_f_02__yei_002__s1234__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__yei_002__s1234__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.18 s · cosine 0.425</span>
+</div>
+<p class=heard><span>heard:</span> “Llámalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/sintetica__slr61_f_02__yei_002__s5678__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__yei_002__s5678__ref0.wav</code>
+</div>
+<div class="clip">
+<div class=clip-head>
+<span class=model>Sintética</span>
+<span class=nums>WER 0.000 · tail 0.18 s · cosine 0.425</span>
+</div>
+<p class=heard><span>heard:</span> “Llámalo ya, que la llave está en el llavero.”</p>
+<audio controls preload=none src="data/samples/08_same-input-same-output/sintetica__slr61_f_02__yei_002__s9012__ref0.wav"></audio>
+<code>sintetica__slr61_f_02__yei_002__s9012__ref0.wav</code>
+</div>
+</section>
+</div></body></html>
